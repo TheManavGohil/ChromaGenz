@@ -1,9 +1,8 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "out",
-  "framework": null,
   "installCommand": "npm install",
-  "functions": {},
+  "framework": "nextjs",
   "routes": [
     {
       "src": "/(.*)",
