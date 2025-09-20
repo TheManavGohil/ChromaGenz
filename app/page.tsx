@@ -41,7 +41,7 @@ export default function Home() {
   useEffect(() => {
     const intervalId = setInterval(() => {
       setCurrentGradientIndex((prevIndex) => (prevIndex + 1) % gradients.length);
-    }, 2000);
+    }, 5000);
 
     return () => clearInterval(intervalId);
   }, []);
@@ -99,7 +99,7 @@ export default function Home() {
           className="absolute inset-0 z-0"
           style={{
             background: gradients[currentGradientIndex].gradient,
-            transition: 'background 4s ease-in-out',
+            transition: 'background 8s ease-in-out',
           }}
         />
         
