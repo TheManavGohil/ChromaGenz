@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Palette, Sparkles, Eye, Download, ArrowRight, Star, Users, Zap } from 'lucide-react';
@@ -9,8 +9,26 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { initializeMockData } from '@/utils/storage';
 
 export default function Home() {
+  const gradients = [
+    'linear-gradient(135deg, #C2FFF9 0%, #00B3A6 25%, #008080 50%, #004D40 75%, #08090A 100%)',
+    'linear-gradient(135deg, #FF6B6B 0%, #FF8E53 25%, #FFA94D 50%, #FFD700 75%, #FFF4E6 100%)',
+    'linear-gradient(135deg, #A8E6CF 0%, #7FD1AE 25%, #4CAF50 50%, #2E7D32 75%, #1B5E20 100%)',
+    'linear-gradient(135deg, #B39DDB 0%, #9575CD 25%, #673AB7 50%, #4527A0 75%, #311B92 100%)',
+    'linear-gradient(135deg, #FF8A80 0%, #FF5252 25%, #FF1744 50%, #D50000 75%, #B71C1C 100%)'
+  ];
+
+  const [currentGradientIndex, setCurrentGradientIndex] = useState(0);
+
   useEffect(() => {
     initializeMockData();
+  }, []);
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      setCurrentGradientIndex((prevIndex) => (prevIndex + 1) % gradients.length);
+    }, 2000);
+
+    return () => clearInterval(intervalId);
   }, []);
 
   const features = [
@@ -65,7 +83,8 @@ export default function Home() {
         <div 
           className="absolute inset-0 z-0"
           style={{
-            background: 'linear-gradient(135deg, #C2FFF9 0%, #00B3A6 25%, #008080 50%, #004D40 75%, #08090A 100%)',
+            background: gradients[currentGradientIndex],
+            transition: 'background 4s ease-in-out',
           }}
         />
         
