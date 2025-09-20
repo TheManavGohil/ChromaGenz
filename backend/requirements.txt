@@ -1,0 +1,9 @@
+flask
+Pillow
+scikit-learn
+numpy
+flask-cors
+groq
+langchain
+langchain-groq
+python-dotenv
