@@ -12,12 +12,13 @@ import { AccessibilityChecker } from '@/components/features/accessibility-checke
 import { ColorBlindSimulator } from '@/components/features/colorblind-simulator';
 import { GradientViewer } from '@/components/features/gradient-viewer';
 import { WebsitePreview } from '@/components/features/website-preview';
-import { generateRandomPalette, hexToColor } from '@/utils/colors';
+import { hexToColor } from '@/utils/colors';
 import { savePalette } from '@/utils/storage';
 import { Palette, Color } from '@/types';
 import { Sparkles, Image, Link as LinkIcon, Shuffle, Save, Download, Palette as PaletteIcon, Eye } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import { useToast } from '@/hooks/use-toast';
+import { colorApi } from '@/lib/api';
 
 export default function Generate() {
   const [palette, setPalette] = useState<Palette | null>(null);
@@ -45,24 +46,47 @@ export default function Generate() {
     return () => document.removeEventListener('keydown', handleKeyPress);
   }, []);
 
-  const generatePalette = useCallback(() => {
-    setIsGenerating(true);
-    
-    // Simulate AI generation delay
-    setTimeout(() => {
-      const colors = generateRandomPalette(5);
+  const generatePalette = useCallback(async () => {
+    try {
+      setIsGenerating(true);
+      
+      let response;
+      if (prompt.trim()) {
+        // If we have a text prompt, use it to generate the palette
+        response = await colorApi.generatePaletteFromText(prompt);
+      } else {
+        // If no prompt, generate a random seed color and use it
+        const seedColor = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+        response = await colorApi.generatePaletteFromSeed(seedColor);
+      }
+      
+      // Convert the API response to our Palette format
+        const colors = response.palette.map(color => ({
+          hex: color.hex,
+          rgb: `rgb(${color.rgb.join(',')})`,
+          hsl: hexToColor(color.hex).hsl, // Convert to HSL for our UI
+        }));
+      
       const newPalette: Palette = {
         id: Date.now().toString(),
-        name: `Generated Palette ${new Date().toLocaleTimeString()}`,
+        name: prompt ? prompt : `Generated Palette ${new Date().toLocaleTimeString()}`,
         colors,
         createdAt: new Date().toISOString(),
         locked: new Array(colors.length).fill(false),
       };
       
       setPalette(newPalette);
+    } catch (error) {
+      console.error('Failed to generate palette:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate palette. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
       setIsGenerating(false);
-    }, 800);
-  }, []);
+    }
+  }, [prompt, toast]);
 
   const handleColorChange = (index: number, color: Color) => {
     if (palette) {
@@ -95,21 +119,46 @@ export default function Generate() {
     }
   };
 
-  // Mock image upload handling
-  const onDrop = useCallback((acceptedFiles: File[]) => {
+  // Handle image upload and color extraction
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     if (file) {
-      setIsGenerating(true);
-      // Mock extraction - generate random palette
-      setTimeout(() => {
-        generatePalette();
+      try {
+        setIsGenerating(true);
+        const response = await colorApi.extractColorsFromImage(file);
+        
+        // Convert the API response to our Palette format
+        const colors = response.colors.map(color => ({
+          hex: color.hex,
+          rgb: `rgb(${color.rgb.join(',')})`,
+          hsl: hexToColor(color.hex).hsl, // Convert to HSL for our UI
+        }));
+        
+        const newPalette: Palette = {
+          id: Date.now().toString(),
+          name: `Colors from ${file.name}`,
+          colors,
+          createdAt: new Date().toISOString(),
+          locked: new Array(colors.length).fill(false),
+        };
+        
+        setPalette(newPalette);
         toast({
           title: "Colors Extracted!",
           description: `Generated palette from ${file.name}`,
         });
-      }, 1200);
+      } catch (error) {
+        console.error('Failed to extract colors from image:', error);
+        toast({
+          title: "Error",
+          description: "Failed to extract colors from image. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsGenerating(false);
+      }
     }
-  }, [generatePalette, toast]);
+  }, [toast]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -119,17 +168,42 @@ export default function Generate() {
     multiple: false,
   });
 
-  const handleUrlGeneration = () => {
+  const handleUrlGeneration = async () => {
     if (url.trim()) {
-      setIsGenerating(true);
-      // Mock URL extraction
-      setTimeout(() => {
-        generatePalette();
+      try {
+        setIsGenerating(true);
+        const response = await colorApi.extractColorsFromUrl(url);
+        
+        // Convert the API response to our Palette format
+        const colors = response.colors.map(color => ({
+          hex: color.hex,
+          rgb: `rgb(${color.rgb.join(',')})`,
+          hsl: hexToColor(color.hex).hsl, // Convert to HSL for our UI
+        }));
+        
+        const newPalette: Palette = {
+          id: Date.now().toString(),
+          name: `Colors from ${url}`,
+          colors,
+          createdAt: new Date().toISOString(),
+          locked: new Array(colors.length).fill(false),
+        };
+        
+        setPalette(newPalette);
         toast({
           title: "Colors Extracted!",
           description: `Generated palette from website colors`,
         });
-      }, 1000);
+      } catch (error) {
+        console.error('Failed to extract colors from URL:', error);
+        toast({
+          title: "Error",
+          description: "Failed to extract colors from website. Please check the URL and try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsGenerating(false);
+      }
     }
   };
 
