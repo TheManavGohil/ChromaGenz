@@ -10,11 +10,26 @@ import { initializeMockData } from '@/utils/storage';
 
 export default function Home() {
   const gradients = [
-    'linear-gradient(135deg, #C2FFF9 0%, #00B3A6 25%, #008080 50%, #004D40 75%, #08090A 100%)',
-    'linear-gradient(135deg, #FF6B6B 0%, #FF8E53 25%, #FFA94D 50%, #FFD700 75%, #FFF4E6 100%)',
-    'linear-gradient(135deg, #A8E6CF 0%, #7FD1AE 25%, #4CAF50 50%, #2E7D32 75%, #1B5E20 100%)',
-    'linear-gradient(135deg, #B39DDB 0%, #9575CD 25%, #673AB7 50%, #4527A0 75%, #311B92 100%)',
-    'linear-gradient(135deg, #FF8A80 0%, #FF5252 25%, #FF1744 50%, #D50000 75%, #B71C1C 100%)'
+    {
+      gradient: 'linear-gradient(135deg, #E0FFFF 0%, #88E0E0 25%, #40B0B0 50%, #207070 75%, #104040 100%)',
+      palette: ['#E0FFFF', '#88E0E0', '#40B0B0', '#207070', '#104040']
+    },
+    {
+      gradient: 'linear-gradient(135deg, #FFE4E1 0%, #FFA07A 25%, #FF7F50 50%, #FF6347 75%, #FF4500 100%)',
+      palette: ['#FFE4E1', '#FFA07A', '#FF7F50', '#FF6347', '#FF4500']
+    },
+    {
+      gradient: 'linear-gradient(135deg, #E8F5E9 0%, #A5D6A7 25%, #66BB6A 50%, #43A047 75%, #2E7D32 100%)',
+      palette: ['#E8F5E9', '#A5D6A7', '#66BB6A', '#43A047', '#2E7D32']
+    },
+    {
+      gradient: 'linear-gradient(135deg, #E8EAF6 0%, #C5CAE9 25%, #9FA8DA 50%, #7986CB 75%, #5C6BC0 100%)',
+      palette: ['#E8EAF6', '#C5CAE9', '#9FA8DA', '#7986CB', '#5C6BC0']
+    },
+    {
+      gradient: 'linear-gradient(135deg, #FFEBEE 0%, #FFCDD2 25%, #EF9A9A 50%, #E57373 75%, #EF5350 100%)',
+      palette: ['#FFEBEE', '#FFCDD2', '#EF9A9A', '#E57373', '#EF5350']
+    }
   ];
 
   const [currentGradientIndex, setCurrentGradientIndex] = useState(0);
@@ -83,7 +98,7 @@ export default function Home() {
         <div 
           className="absolute inset-0 z-0"
           style={{
-            background: gradients[currentGradientIndex],
+            background: gradients[currentGradientIndex].gradient,
             transition: 'background 4s ease-in-out',
           }}
         />
@@ -116,7 +131,7 @@ export default function Home() {
                   </Button>
                 </Link>
                 <Link href="/explore">
-                  <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10">
+                  <Button size="lg" variant="outline" className="border-white text-white bg-white/10">
                     Explore Trending
                   </Button>
                 </Link>
@@ -133,7 +148,7 @@ export default function Home() {
               <div className="flex justify-center mb-4">
                 <div className="bg-white/10 backdrop-blur-sm rounded-lg p-1">
                   <div className="flex rounded-md overflow-hidden shadow-lg">
-                    {['#C2FFF9', '#00B3A6', '#008080', '#004D40', '#F4F7F5'].map((color, index) => (
+                    {gradients[currentGradientIndex].palette.map((color, index) => (
                       <div
                         key={index}
                         className="w-16 h-16 md:w-20 md:h-20 transition-transform hover:scale-110"
@@ -144,8 +159,14 @@ export default function Home() {
                   </div>
                 </div>
               </div>
-              <p className="text-cyan-200 text-sm">
-                AI-generated palette: Ocean Breeze
+              <p className="text-cyan-200 text-sm mt-2">
+                AI-generated palette: {
+                  currentGradientIndex === 0 ? "Ocean Breeze" :
+                  currentGradientIndex === 1 ? "Coral Sunset" :
+                  currentGradientIndex === 2 ? "Spring Forest" :
+                  currentGradientIndex === 3 ? "Lavender Mist" :
+                  "Rose Dawn"
+                }
               </p>
             </motion.div>
           </div>

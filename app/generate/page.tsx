@@ -11,6 +11,7 @@ import { PaletteViewer } from '@/components/features/palette-viewer';
 import { AccessibilityChecker } from '@/components/features/accessibility-checker';
 import { ColorBlindSimulator } from '@/components/features/colorblind-simulator';
 import { GradientViewer } from '@/components/features/gradient-viewer';
+import { WebsitePreview } from '@/components/features/website-preview';
 import { generateRandomPalette, hexToColor } from '@/utils/colors';
 import { savePalette } from '@/utils/storage';
 import { Palette, Color } from '@/types';
@@ -340,6 +341,9 @@ export default function Generate() {
             {/* Tools */}
             {palette && (
               <div className="space-y-8">
+                {/* Website Preview */}
+                <WebsitePreview colors={palette.colors} />
+
                 {/* Gradient Viewer */}
                 <GradientViewer colors={palette.colors} />
 
