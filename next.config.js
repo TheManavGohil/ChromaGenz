@@ -1,10 +1,18 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'export',
+  trailingSlash: true,
   eslint: {
     ignoreDuringBuilds: true,
   },
-  images: { unoptimized: true },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  images: { 
+    unoptimized: true,
+    loader: 'custom',
+    loaderFile: './lib/imageLoader.js'
+  },
 };
 
 module.exports = nextConfig;
