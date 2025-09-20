@@ -58,7 +58,9 @@ export function ColorSwatch({
     >
       {/* Color Info */}
       <div
-        className="absolute bottom-0 left-0 right-0 p-4 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300"
+        className={`absolute bottom-0 left-0 right-0 p-4 transform ${
+          isExpanded ? 'translate-y-0' : 'translate-y-full'
+        } transition-transform duration-300`}
         style={{ color: textColor }}
       >
         <div className="bg-black/20 backdrop-blur-sm rounded-lg p-3">

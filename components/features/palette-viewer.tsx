@@ -56,7 +56,8 @@ export function PaletteViewer({
             key={index}
             className="transition-all duration-300 ease-in-out"
             style={{
-              flex: expandedIndex === index ? '2' : '1',
+              flex: expandedIndex === index ? '3' : '1',
+              opacity: expandedIndex === null || expandedIndex === index ? '1' : '0.5',
             }}
             onMouseEnter={() => handleMouseEnter(index)}
             onMouseLeave={handleMouseLeave}
