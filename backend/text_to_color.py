@@ -34,7 +34,7 @@ class TextToColorService:
         # Initialize the Groq model
         self.llm = ChatGroq(
             groq_api_key=self.api_key,
-            model_name="openai/gpt-oss-120b",  # Using openai/gpt-oss-120b model
+            model_name="llama-3.3-70b-versatile",  # Using currently supported model
             temperature=0.7,  # temperature for creativity color extraction
             max_tokens=150,   # Increased for more detailed responses
         )
@@ -42,7 +42,7 @@ class TextToColorService:
         # Initialize a separate LLM instance for explanations with higher token limit
         self.explanation_llm = ChatGroq(
             groq_api_key=self.api_key,
-            model_name="openai/gpt-oss-120b",
+            model_name="llama-3.3-70b-versatile",
             temperature=0.8,  # Higher temperature for more creative explanations
             max_tokens=500,   # More tokens for detailed explanations
         )
@@ -235,27 +235,16 @@ Respond with ONLY the hex color code, nothing else."""
         """
         try:
             # Create system prompt for palette evolution
-            evolution_prompt = """You are an expert color designer. Modify the given color palette based on user feedback.
+            evolution_prompt = f"""Modify this color palette: {current_palette}
+User wants: {user_feedback}
 
-Return ONLY a valid JSON object with this exact structure:
-{
-  "evolved_palette": ["#RRGGBB", "#RRGGBB", "#RRGGBB"],
-  "changes_made": "Brief description",
-  "reasoning": "Brief explanation"
-}
+Respond with ONLY this JSON format (no other text):
+{{"evolved_palette": ["#RRGGBB", "#RRGGBB", "#RRGGBB"], "changes_made": "brief description", "reasoning": "brief explanation"}}
 
-Rules:
-- Use only valid 6-digit hex colors with # prefix
-- Keep the same number of colors as input
-- Make changes that address the user feedback
-- Ensure colors work well together
+Example:
+{{"evolved_palette": ["#CC5533", "#AA7744", "#998855"], "changes_made": "Made colors more muted", "reasoning": "Reduced saturation for professionalism"}}
 
-Example response:
-{
-  "evolved_palette": ["#FF5733", "#33FF57", "#3357FF"],
-  "changes_made": "Increased saturation",
-  "reasoning": "More vibrant colors for energy"
-}"""
+Your JSON:"""
 
             # Prepare the user message
             palette_str = ", ".join(current_palette)
@@ -313,6 +302,26 @@ Please evolve this palette based on the feedback."""
 
             except (json.JSONDecodeError, ValueError) as e:
                 print(f"Error parsing evolution response: {e}")
+                print(f"Raw response was: {response_content}")
+
+                # Try one more time with a simpler extraction
+                try:
+                    # Look for any hex colors in the response
+                    hex_colors = re.findall(r'#[0-9A-Fa-f]{6}', response_content)
+                    if len(hex_colors) >= len(current_palette):
+                        evolved_palette = hex_colors[:len(current_palette)]
+                        return {
+                            'success': True,
+                            'original_palette': current_palette,
+                            'evolved_palette': evolved_palette,
+                            'user_feedback': user_feedback,
+                            'changes_made': 'Extracted colors from AI response',
+                            'reasoning': 'AI provided colors but not in perfect JSON format',
+                            'method': 'ai_evolution_extracted'
+                        }
+                except Exception:
+                    pass
+
                 # Fallback to rule-based evolution
                 return self._fallback_palette_evolution(current_palette, user_feedback)
 
@@ -437,29 +446,13 @@ Please evolve this palette based on the feedback."""
         """
         try:
             # Create system prompt for color explanation
-            explanation_prompt = """You are a color expert. Analyze the given color palette and provide explanations.
+            explanation_prompt = f"""Analyze colors: {palette}
+Context: {context or 'General'}
 
-Return ONLY a valid JSON object with this exact structure:
-{
-  "palette_analysis": {
-    "overall_mood": "Brief mood description",
-    "harmony_type": "Color harmony type",
-    "applications": ["App1", "App2", "App3"],
-    "user_experience": "UX impact description"
-  },
-  "color_explanations": [
-    {
-      "color": "#RRGGBB",
-      "name": "Color name",
-      "psychology": "Psychological impact",
-      "cultural": "Cultural meaning",
-      "design_use": "Design application",
-      "emotion": "Emotional effect"
-    }
-  ]
-}
+Respond with ONLY this JSON format (no other text):
+{{"palette_analysis": {{"overall_mood": "mood", "harmony_type": "harmony", "applications": ["app1", "app2"], "user_experience": "ux"}}, "color_explanations": [{{"color": "#RRGGBB", "name": "name", "psychology": "psych", "cultural": "culture", "design_use": "use", "emotion": "emotion"}}]}}
 
-Keep descriptions concise and professional. Ensure valid JSON format."""
+Your JSON:"""
 
             # Prepare the user message
             palette_str = ", ".join(palette)
@@ -500,6 +493,36 @@ Provide detailed explanations for each color and overall palette analysis."""
 
             except (json.JSONDecodeError, ValueError) as e:
                 print(f"Error parsing explanation response: {e}")
+                print(f"Raw response was: {response_content}")
+
+                # Try to extract useful information from the response
+                try:
+                    # If the response contains useful text about colors, use it
+                    if any(color.lower() in response_content.lower() for color in palette):
+                        return {
+                            'success': True,
+                            'palette_analysis': {
+                                'overall_mood': 'AI analysis available but not in JSON format',
+                                'harmony_type': 'Mixed',
+                                'applications': ['General use'],
+                                'user_experience': 'See AI response for details'
+                            },
+                            'color_explanations': [
+                                {
+                                    'color': color,
+                                    'name': f'Color {i+1}',
+                                    'psychology': 'See AI response for analysis',
+                                    'cultural': 'Various meanings',
+                                    'design_use': 'Multiple applications',
+                                    'emotion': 'Context-dependent'
+                                } for i, color in enumerate(palette)
+                            ],
+                            'ai_response': response_content,  # Include raw response
+                            'method': 'ai_explanation_partial'
+                        }
+                except Exception:
+                    pass
+
                 # Fallback to basic explanations
                 return self._fallback_color_explanation(palette, context)
 
@@ -615,46 +638,70 @@ Provide detailed explanations for each color and overall palette analysis."""
 
     def _extract_and_clean_json(self, response_content: str) -> str:
         """
-        Extract and clean JSON from LLM response
+        Extract and clean JSON from LLM response with multiple fallback strategies
         """
-        # Remove markdown code blocks
-        if "```json" in response_content:
-            json_start = response_content.find("```json") + 7
-            json_end = response_content.find("```", json_start)
-            if json_end != -1:
-                response_content = response_content[json_start:json_end].strip()
-        elif "```" in response_content:
-            json_start = response_content.find("```") + 3
-            json_end = response_content.rfind("```")
-            if json_end != -1:
-                response_content = response_content[json_start:json_end].strip()
+        print(f"Raw LLM response: {response_content[:200]}...")  # Debug log
 
-        # Find JSON object boundaries
-        start_brace = response_content.find('{')
+        # Strategy 1: Remove markdown code blocks
+        cleaned = response_content
+        if "```json" in cleaned:
+            json_start = cleaned.find("```json") + 7
+            json_end = cleaned.find("```", json_start)
+            if json_end != -1:
+                cleaned = cleaned[json_start:json_end].strip()
+        elif "```" in cleaned:
+            json_start = cleaned.find("```") + 3
+            json_end = cleaned.rfind("```")
+            if json_end != -1:
+                cleaned = cleaned[json_start:json_end].strip()
+
+        # Strategy 2: Look for JSON response: prefix
+        if "JSON response:" in cleaned:
+            json_start = cleaned.find("JSON response:") + 14
+            cleaned = cleaned[json_start:].strip()
+
+        # Strategy 3: Find JSON object boundaries
+        start_brace = cleaned.find('{')
         if start_brace == -1:
-            raise ValueError("No JSON object found")
+            # Strategy 4: Try to find any JSON-like structure
+            json_pattern = r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}'
+            matches = re.findall(json_pattern, cleaned, re.DOTALL)
+            if matches:
+                cleaned = matches[0]
+                start_brace = 0
+            else:
+                print(f"No JSON found in: {cleaned}")
+                raise ValueError("No JSON object found")
 
         # Find the matching closing brace
         brace_count = 0
         end_brace = -1
-        for i in range(start_brace, len(response_content)):
-            if response_content[i] == '{':
+        for i in range(start_brace, len(cleaned)):
+            if cleaned[i] == '{':
                 brace_count += 1
-            elif response_content[i] == '}':
+            elif cleaned[i] == '}':
                 brace_count -= 1
                 if brace_count == 0:
                     end_brace = i
                     break
 
         if end_brace == -1:
-            raise ValueError("Incomplete JSON object")
+            # Try to find the last closing brace
+            end_brace = cleaned.rfind('}')
+            if end_brace == -1:
+                raise ValueError("Incomplete JSON object")
 
-        json_str = response_content[start_brace:end_brace + 1]
+        json_str = cleaned[start_brace:end_brace + 1]
 
         # Basic cleanup
         json_str = json_str.replace('\n', ' ').replace('\r', ' ')
         json_str = re.sub(r'\s+', ' ', json_str)  # Normalize whitespace
 
+        # Fix common JSON issues
+        json_str = json_str.replace("'", '"')  # Replace single quotes with double quotes
+        json_str = re.sub(r'(\w+):', r'"\1":', json_str)  # Add quotes to unquoted keys
+
+        print(f"Extracted JSON: {json_str}")  # Debug log
         return json_str
 
 
