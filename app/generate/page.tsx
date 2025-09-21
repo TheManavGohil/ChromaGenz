@@ -18,7 +18,7 @@ import { Palette, Color } from '@/types';
 import { Sparkles, ImageIcon, Link as LinkIcon, Shuffle, Save, Download, Palette as PaletteIcon, Eye, X, ChevronRight, ChevronLeft } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import { useToast } from '@/hooks/use-toast';
-import { colorApi } from '@/lib/api';
+import { colorApi, PaletteExplanation, ColorExplanation } from '@/lib/api';
 
 // Hardcoded website color palettes
 const WEBSITE_PALETTES: Record<string, { name: string; colors: Color[] }> = {
@@ -62,6 +62,11 @@ export default function Generate() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [colorExplanation, setColorExplanation] = useState<PaletteExplanation | null>(null);
+  const [isExplaining, setIsExplaining] = useState(false);
+  const [isEvolving, setIsEvolving] = useState(false);
+  const [evolutionFeedback, setEvolutionFeedback] = useState('');
+  const [targetMood, setTargetMood] = useState('');
   const { toast } = useToast();
 
   // Remove auto-generation on page load
@@ -83,22 +88,47 @@ export default function Generate() {
     try {
       setIsGenerating(true);
       
-      let response;
+      let colors;
       if (prompt.trim()) {
-        // If we have a text prompt, use it to generate the palette
-        response = await colorApi.generatePaletteFromText(prompt);
+        // If we have a text prompt, use the workflow API
+        const response = await colorApi.paletteWorkflow(
+          prompt,
+          'smart',
+          5,
+          evolutionFeedback.trim() || undefined,
+          true
+        );
+
+        // Convert the final palette to our format
+        colors = response.final_palette.map(hex => ({
+          hex,
+          rgb: `rgb(${hex.match(/\w\w/g)?.map(x => parseInt(x, 16)).join(',')})`,
+          hsl: hexToColor(hex).hsl,
+        }));
+
+        // If we got explanations, update them
+        if (response.explanation) {
+          setColorExplanation(response.explanation);
+        }
+
+        // Show evolution explanation if available
+        if (response.evolution?.explanation) {
+          toast({
+            title: "Palette Evolution",
+            description: response.evolution.explanation,
+          });
+        }
       } else {
-        // Generate a random palette with random seed color
+        // If no prompt, generate a random seed color and use it
         const seedColor = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
-        response = await colorApi.generatePaletteFromSeed(seedColor);
-      }
-      
-      // Convert the API response to our Palette format
-        const colors = response.palette.map(color => ({
+        const response = await colorApi.generatePaletteFromSeed(seedColor);
+        
+        colors = response.palette.map(color => ({
           hex: color.hex,
           rgb: `rgb(${color.rgb.join(',')})`,
-          hsl: hexToColor(color.hex).hsl, // Convert to HSL for our UI
+          hsl: hexToColor(color.hex).hsl,
         }));
+      }
       
       const newPalette: Palette = {
         id: Date.now().toString(),
@@ -109,6 +139,10 @@ export default function Generate() {
       };
       
       setPalette(newPalette);
+
+      // Clear evolution inputs after successful generation
+      setEvolutionFeedback('');
+      setTargetMood('');
     } catch (error) {
       console.error('Failed to generate palette:', error);
       toast({
@@ -119,7 +153,7 @@ export default function Generate() {
     } finally {
       setIsGenerating(false);
     }
-  }, [prompt, toast]);
+  }, [prompt, evolutionFeedback, toast]);
 
   const handleColorChange = (index: number, color: Color) => {
     if (palette) {
@@ -253,6 +287,114 @@ export default function Generate() {
       }
       setIsGenerating(false);
     }, 2000);
+  };
+
+  const handleEvolvePalette = async () => {
+    if (!palette || !evolutionFeedback.trim()) return;
+
+    try {
+      setIsEvolving(true);
+      const hexColors = palette.colors.map(c => c.hex);
+      const result = await colorApi.evolvePalette(hexColors, evolutionFeedback, targetMood || undefined);
+
+      // Convert the evolved palette to our format
+      const evolvedColors = result.evolved_palette.map(hex => hexToColor(hex));
+
+      // Update the palette with evolved colors
+      setPalette({
+        ...palette,
+        colors: evolvedColors,
+        name: `${palette.name} (Evolved)`,
+      });
+
+      // Show evolution explanation
+      toast({
+        title: "Palette Evolved!",
+        description: result.explanation,
+      });
+
+      // Clear evolution inputs
+      setEvolutionFeedback('');
+      setTargetMood('');
+    } catch (error) {
+      console.error('Failed to evolve palette:', error);
+      toast({
+        title: "Error",
+        description: "Failed to evolve palette. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsEvolving(false);
+    }
+  };
+
+  const handleExplainColors = async () => {
+    if (!palette || !palette.colors || palette.colors.length === 0) {
+      toast({
+        title: "Error",
+        description: "No colors available to analyze.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsExplaining(true);
+      setColorExplanation(null); // Clear previous explanation while loading
+
+      // Extract hex colors and ensure they're valid
+      const hexColors = palette.colors
+        .map(c => c.hex)
+        .filter(hex => /^#[0-9A-Fa-f]{6}$/.test(hex));
+
+      if (hexColors.length === 0) {
+        throw new Error('No valid colors found in the palette');
+      }
+
+      console.log('Sending colors for analysis:', hexColors);
+      
+      // Get the explanation from the API
+      const explanation = await colorApi.explainColors(hexColors, prompt || undefined);
+      
+      // Log the response to help with debugging
+      console.log('Color explanation response:', explanation);
+      
+      // Additional validation of the response
+      if (!explanation.colors || explanation.colors.length === 0) {
+        throw new Error('No color analysis received from the API');
+      }
+      
+      // Check if we got actual data or just defaults
+      const hasRealData = explanation.colors.some(color => 
+        color.name !== 'Unnamed Color' || 
+        color.description !== 'No description available' ||
+        color.psychology !== 'No psychology information available'
+      );
+      
+      if (!hasRealData) {
+        throw new Error('Received only default values from the API. Please try again.');
+      }
+
+      // Set the explanation (API now handles validation and defaults)
+      setColorExplanation(explanation);
+      
+      // Show success message
+      toast({
+        title: "Analysis Complete",
+        description: "Color palette analysis has been generated successfully.",
+      });
+    } catch (error) {
+      console.error('Failed to get color explanations:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to get color explanations. Please try again.",
+        variant: "destructive",
+      });
+      // Clear any partial explanation
+      setColorExplanation(null);
+    } finally {
+      setIsExplaining(false);
+    }
   };
 
   const handleExport = (format: string) => {
@@ -451,7 +593,7 @@ export default function Generate() {
             }`}
           >
             {/* Color Palette */}
-            <div className="h-[93vh] min-h-[400px]">
+            <div className="h-[100vh] min-h-[400px]">
                   <PaletteViewer
                     palette={palette}
                     onColorChange={handleColorChange}
@@ -707,38 +849,189 @@ export default function Generate() {
                     </div>
                   </div>
 
-                  {/* Quick Actions */}
-                  <div className="space-y-3 border-t pt-4">
-                    <h3 className="font-medium text-sm">Quick Actions</h3>
-                    <div className="space-y-2">
-                      <Button
-                        onClick={generatePalette}
-                        variant="outline"
-                        size="sm"
-                        className="w-full justify-start"
-                        disabled={isGenerating}
-                      >
-                        <Shuffle className="h-3 w-3 mr-2" />
-                        Random Palette
-                      </Button>
-                      <Button
-                        onClick={() => {
-                          setPrompt('');
-                          setUrl('');
-                          setPreviewImage(null);
-                        }}
-                        variant="outline"
-                        size="sm"
-                        className="w-full justify-start"
-                      >
-                        <X className="h-3 w-3 mr-2" />
-                        Clear Inputs
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      All tools are visible below the palette
-                    </p>
-                  </div>
+                   {/* Palette Evolution */}
+                   <div className="space-y-3 border-t pt-4">
+                     <div className="flex items-center justify-between">
+                       <h3 className="font-medium text-sm">Evolve Palette</h3>
+                       <Button
+                         onClick={handleEvolvePalette}
+                         variant="outline"
+                         size="sm"
+                         className="bg-background hover:bg-primary hover:text-white transition-colors"
+                         disabled={isEvolving || !palette || !evolutionFeedback.trim()}
+                       >
+                         {isEvolving ? (
+                           <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
+                         ) : (
+                           <Sparkles className="h-4 w-4 mr-2" />
+                         )}
+                         {isEvolving ? 'Evolving...' : 'Evolve Palette'}
+                       </Button>
+                     </div>
+
+                     {palette && (
+                       <div className="space-y-3">
+                         <div>
+                           <label className="text-sm font-medium mb-2 block">
+                             Evolution Feedback
+                           </label>
+                           <Textarea
+                             placeholder="e.g., make it warmer, more vibrant, more professional..."
+                             value={evolutionFeedback}
+                             onChange={(e) => setEvolutionFeedback(e.target.value)}
+                             className="resize-none bg-background"
+                             rows={3}
+                           />
+                         </div>
+                         <div>
+                           <label className="text-sm font-medium mb-2 block">
+                             Target Mood (Optional)
+                           </label>
+                           <Input
+                             placeholder="e.g., energetic, calm, professional..."
+                             value={targetMood}
+                             onChange={(e) => setTargetMood(e.target.value)}
+                             className="bg-background"
+                           />
+                         </div>
+                       </div>
+                     )}
+
+                     {!palette && (
+                       <p className="text-sm text-muted-foreground">
+                         Generate a palette first to evolve it
+                       </p>
+                     )}
+                   </div>
+
+                   {/* Color Explanation */}
+                   <div className="space-y-3 border-t pt-4">
+                     <div className="flex items-center justify-between">
+                       <h3 className="font-medium text-sm">Color Analysis</h3>
+                       <Button
+                         onClick={handleExplainColors}
+                         variant="outline"
+                         size="sm"
+                         className="bg-background hover:bg-primary hover:text-white transition-colors"
+                         disabled={isExplaining || !palette}
+                       >
+                         {isExplaining ? (
+                           <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
+                         ) : (
+                           <Eye className="h-4 w-4 mr-2" />
+                         )}
+                         {isExplaining ? 'Analyzing...' : 'Analyze Colors'}
+                       </Button>
+                     </div>
+
+                     {colorExplanation && (
+                       <div className="space-y-4">
+                         {/* Palette Analysis */}
+                         <div className="rounded-lg bg-muted/50 p-3 space-y-2">
+                           <h4 className="font-medium text-sm">Palette Analysis</h4>
+                           <div className="space-y-1 text-sm">
+                             {colorExplanation.palette_analysis?.harmony && (
+                               <p><span className="font-medium">Harmony:</span> {colorExplanation.palette_analysis.harmony}</p>
+                             )}
+                             {colorExplanation.palette_analysis?.mood && (
+                               <p><span className="font-medium">Mood:</span> {colorExplanation.palette_analysis.mood}</p>
+                             )}
+                             {colorExplanation.palette_analysis?.use_cases && colorExplanation.palette_analysis.use_cases.length > 0 && (
+                               <div>
+                                 <span className="font-medium">Use Cases:</span>
+                                 <ul className="list-disc list-inside mt-1 text-muted-foreground">
+                                   {colorExplanation.palette_analysis.use_cases.map((use: string, i: number) => (
+                                     <li key={i}>{use}</li>
+                                   ))}
+                                 </ul>
+                               </div>
+                             )}
+                           </div>
+                         </div>
+
+                         {/* Individual Colors */}
+                         <div className="space-y-3">
+                           <h4 className="font-medium text-sm">Color Details</h4>
+                           {colorExplanation.colors?.map((color: ColorExplanation, i: number) => (
+                             <div key={i} className="rounded-lg bg-muted/50 p-3 space-y-2">
+                               <div className="flex items-center gap-2">
+                                 <div 
+                                   className="w-6 h-6 rounded-full border"
+                                   style={{ backgroundColor: color.color }}
+                                 />
+                                 <span className="font-medium">{color.name || 'Unnamed Color'}</span>
+                               </div>
+                               {color.description && (
+                                 <p className="text-sm text-muted-foreground">{color.description}</p>
+                               )}
+                               {color.psychology && (
+                                 <div className="text-sm">
+                                   <p className="font-medium mb-1">Psychology:</p>
+                                   <p className="text-muted-foreground">{color.psychology}</p>
+                                 </div>
+                               )}
+                               {color.common_uses && color.common_uses.length > 0 && (
+                                 <div className="text-sm">
+                                   <p className="font-medium mb-1">Common Uses:</p>
+                                   <ul className="list-disc list-inside text-muted-foreground">
+                                     {color.common_uses.map((use: string, j: number) => (
+                                       <li key={j}>{use}</li>
+                                     ))}
+                                   </ul>
+                                 </div>
+                               )}
+                             </div>
+                           ))}
+                         </div>
+                       </div>
+                     )}
+
+                     {!colorExplanation && palette && (
+                       <p className="text-sm text-muted-foreground">
+                         Click 'Analyze' to get detailed insights about your color palette
+                       </p>
+                     )}
+
+                     {!palette && (
+                       <p className="text-sm text-muted-foreground">
+                         Generate a palette first to see color analysis
+                       </p>
+                     )}
+                   </div>
+
+                   {/* Quick Actions */}
+                   <div className="space-y-3 border-t pt-4">
+                     <h3 className="font-medium text-sm">Quick Actions</h3>
+                     <div className="space-y-2">
+                       <Button
+                         onClick={generatePalette}
+                         variant="outline"
+                         size="sm"
+                         className="w-full justify-start"
+                         disabled={isGenerating}
+                       >
+                         <Shuffle className="h-3 w-3 mr-2" />
+                         Random Palette
+                       </Button>
+                       <Button
+                         onClick={() => {
+                           setPrompt('');
+                           setUrl('');
+                           setPreviewImage(null);
+                           setColorExplanation(null);
+                         }}
+                         variant="outline"
+                         size="sm"
+                         className="w-full justify-start"
+                       >
+                         <X className="h-3 w-3 mr-2" />
+                         Clear All
+                       </Button>
+                     </div>
+                     <p className="text-xs text-muted-foreground">
+                       All tools are visible below the palette
+                     </p>
+                   </div>
                 </div>
               </motion.div>
             )}

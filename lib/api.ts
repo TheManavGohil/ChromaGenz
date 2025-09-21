@@ -24,6 +24,48 @@ export interface ExtractColorsResponse {
   include_percentages: boolean;
 }
 
+export interface ColorExplanation {
+  color: string;
+  name: string;
+  description: string;
+  psychology: string;
+  common_uses: string[];
+}
+
+export interface PaletteExplanation {
+  colors: ColorExplanation[];
+  palette_analysis: {
+    harmony: string;
+    mood: string;
+    use_cases: string[];
+  };
+}
+
+export interface PaletteEvolution {
+  success: boolean;
+  evolved_palette: string[];
+  changes_made: string[];
+  explanation: string;
+}
+
+export interface WorkflowResult {
+  success: boolean;
+  text_description: string;
+  palette_mode: string;
+  num_colors: number;
+  initial_palette: {
+    seed_color: string;
+    palette: string[];
+  };
+  evolution?: {
+    evolved_palette: string[];
+    changes_made: string[];
+    explanation: string;
+  };
+  explanation?: PaletteExplanation;
+  final_palette: string[];
+}
+
 export const colorApi = {
   // Generate palette from text description
   generatePaletteFromText: async (
@@ -166,4 +208,135 @@ export const colorApi = {
 
     return response.json();
   },
+
+  // Evolve an existing palette based on user feedback
+  evolvePalette: async (
+    current_palette: string[],
+    user_feedback: string,
+    target_mood?: string
+  ): Promise<PaletteEvolution> => {
+    const response = await fetch(`${API_BASE_URL}/evolve-palette`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        current_palette,
+        user_feedback,
+        target_mood,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to evolve palette');
+    }
+
+    return response.json();
+  },
+
+  // Get AI-powered explanations for colors
+  explainColors: async (
+    palette: string[],
+    context?: string
+  ): Promise<PaletteExplanation> => {
+    // Ensure all colors are properly formatted
+    const validPalette = palette.map(color => color.startsWith('#') ? color : `#${color}`);
+    
+    console.log('Sending request to explain-colors:', {
+      palette: validPalette,
+      context: context || undefined
+    });
+
+    const response = await fetch(`${API_BASE_URL}/explain-colors`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        palette: validPalette,
+        context: context || undefined,
+      }),
+    });
+
+    if (!response.ok) {
+      // Try to get more detailed error message
+      try {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to explain colors');
+      } catch {
+        throw new Error(`Failed to explain colors (${response.status})`);
+      }
+    }
+
+    const data = await response.json();
+    console.log('Raw API Response:', data); // Log the raw response
+    
+    // Check if we have the expected data structure
+    if (!data || typeof data !== 'object') {
+      throw new Error('Invalid API response format');
+    }
+    
+    // Validate response structure and provide default values
+    const defaultColor = {
+      color: '#000000',
+      name: 'Unnamed Color',
+      description: 'No description available',
+      psychology: 'No psychology information available',
+      common_uses: []
+    };
+
+    const defaultPaletteAnalysis = {
+      harmony: 'No harmony information available',
+      mood: 'No mood information available',
+      use_cases: []
+    };
+
+    // Return the explanation data with proper type checking and defaults
+    return {
+      colors: Array.isArray(data?.colors) ? data.colors.map((color: any) => ({
+        color: color?.color || color?.hex || defaultColor.color,
+        name: color?.name || defaultColor.name,
+        description: color?.description || defaultColor.description,
+        psychology: color?.psychology || defaultColor.psychology,
+        common_uses: Array.isArray(color?.common_uses) ? color.common_uses : defaultColor.common_uses
+      })) : [defaultColor],
+      palette_analysis: {
+        harmony: data?.palette_analysis?.harmony || defaultPaletteAnalysis.harmony,
+        mood: data?.palette_analysis?.mood || defaultPaletteAnalysis.mood,
+        use_cases: Array.isArray(data?.palette_analysis?.use_cases) ? 
+          data.palette_analysis.use_cases : defaultPaletteAnalysis.use_cases
+      }
+    };
+  },
+
+  // Complete palette workflow
+  paletteWorkflow: async (
+    text_description: string,
+    palette_mode: 'smart' | 'analogous' | 'split_complementary' | 'triadic' | 'tetradic' = 'smart',
+    num_colors: number = 5,
+    evolution_feedback?: string,
+    include_explanation: boolean = true
+  ): Promise<WorkflowResult> => {
+    const response = await fetch(`${API_BASE_URL}/palette-workflow`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        text_description,
+        palette_mode,
+        num_colors,
+        evolution_feedback,
+        include_explanation,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to execute palette workflow');
+    }
+
+    return response.json();
+  },
 };
+
+
