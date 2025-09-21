@@ -41,7 +41,7 @@ export default function Home() {
   useEffect(() => {
     const intervalId = setInterval(() => {
       setCurrentGradientIndex((prevIndex) => (prevIndex + 1) % gradients.length);
-    }, 5000);
+    }, 6000);
 
     return () => clearInterval(intervalId);
   }, []);

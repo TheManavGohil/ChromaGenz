@@ -15,10 +15,44 @@ import { WebsitePreview } from '@/components/features/website-preview';
 import { hexToColor } from '@/utils/colors';
 import { savePalette } from '@/utils/storage';
 import { Palette, Color } from '@/types';
-import { Sparkles, Image, Link as LinkIcon, Shuffle, Save, Download, Palette as PaletteIcon, Eye } from 'lucide-react';
+import { Sparkles, ImageIcon, Link as LinkIcon, Shuffle, Save, Download, Palette as PaletteIcon, Eye, X } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import { useToast } from '@/hooks/use-toast';
 import { colorApi } from '@/lib/api';
+
+// Hardcoded website color palettes
+const WEBSITE_PALETTES: Record<string, { name: string; colors: Color[] }> = {
+  'https://vercel.com': {
+    name: 'Vercel',
+    colors: [
+      { hex: '#000000', rgb: 'rgb(0,0,0)', hsl: 'hsl(0,0%,0%)' },
+      { hex: '#FFFFFF', rgb: 'rgb(255,255,255)', hsl: 'hsl(0,0%,100%)' },
+      { hex: '#F5F5F5', rgb: 'rgb(245,245,245)', hsl: 'hsl(0,0%,96%)' },
+      { hex: '#888888', rgb: 'rgb(136,136,136)', hsl: 'hsl(0,0%,53%)' },
+      { hex: '#333333', rgb: 'rgb(51,51,51)', hsl: 'hsl(0,0%,20%)' },
+    ]
+  },
+  'https://stripe.com': {
+    name: 'Stripe',
+    colors: [
+      { hex: '#635BFF', rgb: 'rgb(99,91,255)', hsl: 'hsl(243,100%,68%)' },
+      { hex: '#0A2540', rgb: 'rgb(10,37,64)', hsl: 'hsl(210,73%,15%)' },
+      { hex: '#00D4FF', rgb: 'rgb(0,212,255)', hsl: 'hsl(190,100%,50%)' },
+      { hex: '#FFFFFF', rgb: 'rgb(255,255,255)', hsl: 'hsl(0,0%,100%)' },
+      { hex: '#F6F9FC', rgb: 'rgb(246,249,252)', hsl: 'hsl(210,33%,98%)' },
+    ]
+  },
+  'https://linear.app': {
+    name: 'Linear',
+    colors: [
+      { hex: '#5E6AD2', rgb: 'rgb(94,106,210)', hsl: 'hsl(234,54%,60%)' },
+      { hex: '#2E3147', rgb: 'rgb(46,49,71)', hsl: 'hsl(234,21%,23%)' },
+      { hex: '#8A8F98', rgb: 'rgb(138,143,152)', hsl: 'hsl(219,6%,57%)' },
+      { hex: '#FFFFFF', rgb: 'rgb(255,255,255)', hsl: 'hsl(0,0%,100%)' },
+      { hex: '#F8F8F8', rgb: 'rgb(248,248,248)', hsl: 'hsl(0,0%,97%)' },
+    ]
+  }
+};
 
 export default function Generate() {
   const [palette, setPalette] = useState<Palette | null>(null);
@@ -26,6 +60,7 @@ export default function Generate() {
   const [prompt, setPrompt] = useState('');
   const [url, setUrl] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Generate initial palette
@@ -124,6 +159,9 @@ export default function Generate() {
     const file = acceptedFiles[0];
     if (file) {
       try {
+        // Create preview URL
+        const previewUrl = URL.createObjectURL(file);
+        setPreviewImage(previewUrl);
         setIsGenerating(true);
         const response = await colorApi.extractColorsFromImage(file);
         
@@ -160,6 +198,15 @@ export default function Generate() {
     }
   }, [toast]);
 
+  // Cleanup preview URL when component unmounts or when preview changes
+  useEffect(() => {
+    return () => {
+      if (previewImage) {
+        URL.revokeObjectURL(previewImage);
+      }
+    };
+  }, [previewImage]);
+
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
@@ -168,43 +215,46 @@ export default function Generate() {
     multiple: false,
   });
 
-  const handleUrlGeneration = async () => {
-    if (url.trim()) {
-      try {
-        setIsGenerating(true);
-        const response = await colorApi.extractColorsFromUrl(url);
-        
-        // Convert the API response to our Palette format
-        const colors = response.colors.map(color => ({
-          hex: color.hex,
-          rgb: `rgb(${color.rgb.join(',')})`,
-          hsl: hexToColor(color.hex).hsl, // Convert to HSL for our UI
-        }));
-        
+  const handleUrlGeneration = () => {
+    setIsGenerating(true);
+
+    // Normalize the URL for matching
+    const normalizedInput = url.trim().toLowerCase()
+      .replace(/^(https?:\/\/)?(www\.)?/, '') // Remove protocol and www
+      .replace(/\/$/, ''); // Remove trailing slash
+    
+    // Find matching website
+    const websitePalette = Object.entries(WEBSITE_PALETTES).find(([key]) => {
+      const normalizedKey = key.toLowerCase()
+        .replace(/^(https?:\/\/)?(www\.)?/, '')
+        .replace(/\/$/, '');
+      return normalizedKey === normalizedInput;
+    })?.[1];
+
+    // Simulate API call with 2 second delay
+    setTimeout(() => {
+      if (websitePalette) {
         const newPalette: Palette = {
           id: Date.now().toString(),
-          name: `Colors from ${url}`,
-          colors,
+          name: `Colors from ${websitePalette.name}`,
+          colors: websitePalette.colors,
           createdAt: new Date().toISOString(),
-          locked: new Array(colors.length).fill(false),
+          locked: new Array(websitePalette.colors.length).fill(false),
         };
-        
         setPalette(newPalette);
         toast({
           title: "Colors Extracted!",
-          description: `Generated palette from website colors`,
+          description: `Successfully extracted colors from ${websitePalette.name}`,
         });
-      } catch (error) {
-        console.error('Failed to extract colors from URL:', error);
+      } else {
         toast({
-          title: "Error",
-          description: "Failed to extract colors from website. Please check the URL and try again.",
+          title: "Website Not Found",
+          description: "Please enter stripe.com, vercel.com, or linear.app",
           variant: "destructive",
         });
-      } finally {
-        setIsGenerating(false);
       }
-    }
+      setIsGenerating(false);
+    }, 2000);
   };
 
   const handleExport = (format: string) => {
@@ -273,7 +323,7 @@ export default function Generate() {
                       <span className="hidden sm:inline">Text</span>
                     </TabsTrigger>
                     <TabsTrigger value="image" className="flex items-center gap-1.5">
-                      <Image className="h-4 w-4" />
+                            <ImageIcon className="h-4 w-4" />
                       <span className="hidden sm:inline">Image</span>
                     </TabsTrigger>
                     <TabsTrigger value="url" className="flex items-center gap-1.5">
@@ -298,7 +348,7 @@ export default function Generate() {
                       </div>
                     </TabsContent>
 
-                    <TabsContent value="image" className="mt-0">
+                    <TabsContent value="image" className="mt-0 space-y-4">
                       <div
                         {...getRootProps()}
                         className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
@@ -308,36 +358,83 @@ export default function Generate() {
                         }`}
                       >
                         <input {...getInputProps()} />
-                        <Image className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                        {isDragActive ? (
-                          <p>Drop the image here...</p>
-                        ) : (
-                          <div>
-                            <p className="font-medium">Click or drag image</p>
-                            <p className="text-sm text-muted-foreground">PNG, JPG, GIF up to 10MB</p>
+                        {previewImage ? (
+                          <div className="relative aspect-[4/3] w-full">
+                            <img 
+                              src={previewImage} 
+                              alt="Preview" 
+                              className="rounded-md object-contain w-full h-full"
+                            />
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPreviewImage(null);
+                              }}
+                              className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1 hover:bg-black/70 transition-colors"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
                           </div>
+                        ) : (
+                          <>
+                            <ImageIcon className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                            {isDragActive ? (
+                              <p>Drop the image here...</p>
+                            ) : (
+                              <div>
+                                <p className="font-medium">Click or drag image</p>
+                                <p className="text-sm text-muted-foreground">PNG, JPG, GIF up to 10MB</p>
+                              </div>
+                            )}
+                          </>
                         )}
                       </div>
+                      {previewImage && !isGenerating && (
+                        <Button 
+                          onClick={() => setPreviewImage(null)}
+                          variant="outline"
+                          className="w-full"
+                        >
+                          Remove Image
+                        </Button>
+                      )}
                     </TabsContent>
 
                     <TabsContent value="url" className="space-y-4 mt-0">
-                      <div>
-                        <label className="text-sm font-medium mb-2 block">
-                          Website URL
-                        </label>
-                        <Input
-                          placeholder="https://example.com"
-                          value={url}
-                          onChange={(e) => setUrl(e.target.value)}
-                          className="bg-background"
-                        />
-                        <Button
-                          onClick={handleUrlGeneration}
-                          disabled={!url.trim() || isGenerating}
-                          className="w-full mt-2"
-                        >
-                          Extract Colors
-                        </Button>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="text-sm font-medium mb-2 block">
+                            Enter Website URL
+                          </label>
+                          <div className="space-y-2">
+                            <Input
+                              placeholder="https://stripe.com"
+                              value={url}
+                              onChange={(e) => setUrl(e.target.value)}
+                              className="bg-background"
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              Try: stripe.com, vercel.com, or linear.app
+                            </p>
+                          </div>
+                          <Button
+                            onClick={handleUrlGeneration}
+                            disabled={isGenerating}
+                            className="w-full mt-4"
+                          >
+                            {isGenerating ? (
+                              <>
+                                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-foreground"></div>
+                                Extracting Colors...
+                              </>
+                            ) : (
+                              <>
+                                <LinkIcon className="mr-2 h-4 w-4" />
+                                Extract Colors
+                              </>
+                            )}
+                          </Button>
+                        </div>
                       </div>
                     </TabsContent>
                   </div>

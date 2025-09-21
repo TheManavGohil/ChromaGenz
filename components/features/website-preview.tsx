@@ -13,8 +13,30 @@ export function WebsitePreview({ colors }: WebsitePreviewProps) {
   // Ensure we have enough colors
   if (!colors || colors.length < 5) return null;
 
+  // Helper function to determine if a color is light
+  const isLightColor = (hex: string) => {
+    const rgb = parseInt(hex.slice(1), 16);
+    const r = (rgb >> 16) & 0xff;
+    const g = (rgb >> 8) & 0xff;
+    const b = (rgb >> 0) & 0xff;
+    const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+    return luminance > 128;
+  };
+
+  // Sort colors by luminance and assign roles
+  const sortedColors = [...colors].sort((a, b) => 
+    isLightColor(b.hex) ? 1 : -1
+  );
+
   // Extract colors for different elements
-  const [primary, secondary, accent, text, background] = colors;
+  const [darkest, dark, medium, light, lightest] = sortedColors;
+
+  // Assign semantic roles
+  const text = darkest;
+  const background = lightest;
+  const primary = medium;
+  const secondary = light;
+  const accent = dark;
 
   return (
     <Card className="overflow-hidden">
@@ -114,7 +136,8 @@ export function WebsitePreview({ colors }: WebsitePreviewProps) {
                 <div 
                   className="absolute inset-0"
                   style={{ 
-                    background: `linear-gradient(135deg, ${primary.hex}80, ${secondary.hex}80)`,
+                    background: `linear-gradient(135deg, ${primary.hex}40, ${secondary.hex}40)`,
+                    mixBlendMode: 'multiply'
                   }}
                 />
               </div>
@@ -150,8 +173,9 @@ export function WebsitePreview({ colors }: WebsitePreviewProps) {
                     key={i}
                     className="p-6 rounded-lg"
                     style={{ 
-                      background: i === 1 ? secondary.hex : 'rgba(255,255,255,0.1)',
-                      color: text.hex
+                      background: i === 1 ? primary.hex : 'rgba(0,0,0,0.03)',
+                      color: text.hex,
+                      boxShadow: i === 1 ? 'none' : '0 1px 3px rgba(0,0,0,0.1)'
                     }}
                   >
                     <feature.icon className="h-8 w-8 mb-4" style={{ color: text.hex }} />

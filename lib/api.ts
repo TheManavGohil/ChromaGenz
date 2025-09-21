@@ -103,13 +103,49 @@ export const colorApi = {
     url: string,
     n_colors: number = 5
   ): Promise<ExtractColorsResponse> => {
-    // First fetch the image from the URL
-    const imageResponse = await fetch(url);
-    const imageBlob = await imageResponse.blob();
-    const imageFile = new File([imageBlob], 'image.jpg', { type: imageBlob.type });
+    const response = await fetch(`${API_BASE_URL}/extract-colors-from-url`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        url,
+        n_colors,
+      }),
+    });
 
-    // Then extract colors using the same method as file upload
-    return colorApi.extractColorsFromImage(imageFile, n_colors);
+    if (!response.ok) {
+      // Get specific error message from response if available
+      let errorMessage = 'Failed to extract colors from URL';
+      try {
+        const errorData = await response.json();
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+      } catch {
+        // If we can't parse the error response, use status-based messages
+        switch (response.status) {
+          case 404:
+            errorMessage = 'Website not found (404)';
+            break;
+          case 408:
+            errorMessage = 'Request timeout';
+            break;
+          case 429:
+            errorMessage = 'Too many requests. Please try again later';
+            break;
+          case 500:
+            errorMessage = 'Server error. Please try again later';
+            break;
+          case 503:
+            errorMessage = 'Service temporarily unavailable';
+            break;
+        }
+      }
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
   },
 
   // Generate a single color from text description
