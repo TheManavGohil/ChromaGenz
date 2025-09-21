@@ -38,7 +38,9 @@ def health_check():
         'features': {
             'image_color_extraction': True,
             'text_to_color': text_service_available,
-            'palette_generation': True
+            'palette_generation': True,
+            'palette_evolution': text_service_available,
+            'color_explanation': text_service_available
         }
     })
 
@@ -461,6 +463,269 @@ def generate_palette_from_seed():
         return jsonify({
             'error': 'Internal server error',
             'message': 'An error occurred while generating the palette'
+        }), 500
+
+@app.route('/evolve-palette', methods=['POST'])
+def evolve_palette():
+    """
+    Evolve an existing color palette based on user feedback
+
+    Expected JSON data:
+    - current_palette: Array of hex color codes
+    - user_feedback: User's feedback on how to modify the palette
+    - target_mood: Optional target mood/theme for evolution
+
+    Returns:
+    JSON response with evolved palette and explanation
+    """
+    try:
+        # Get JSON data
+        data = request.get_json()
+
+        if not data or 'current_palette' not in data or 'user_feedback' not in data:
+            return jsonify({
+                'error': 'Missing required data',
+                'message': 'Please provide current_palette and user_feedback in the request body'
+            }), 400
+
+        current_palette = data['current_palette']
+        user_feedback = data['user_feedback'].strip()
+        target_mood = data.get('target_mood', '').strip() or None
+
+        # Validate current_palette
+        if not isinstance(current_palette, list) or not current_palette:
+            return jsonify({
+                'error': 'Invalid current_palette',
+                'message': 'current_palette must be a non-empty array of hex color codes'
+            }), 400
+
+        # Validate hex colors
+        import re
+        valid_palette = []
+        for color in current_palette:
+            if isinstance(color, str) and re.match(r'^#[0-9A-Fa-f]{6}$', color):
+                valid_palette.append(color.upper())
+            else:
+                return jsonify({
+                    'error': 'Invalid color format',
+                    'message': f'Color {color} is not a valid hex color (e.g., #FF5733)'
+                }), 400
+
+        if not user_feedback:
+            return jsonify({
+                'error': 'Empty user feedback',
+                'message': 'Please provide non-empty user feedback'
+            }), 400
+
+        # Evolve palette
+        if text_service_available and text_to_color_service:
+            result = text_to_color_service.evolve_palette(valid_palette, user_feedback, target_mood)
+        else:
+            # Use fallback method
+            from text_to_color import TextToColorService
+            temp_service = TextToColorService.__new__(TextToColorService)
+            result = temp_service._fallback_palette_evolution(valid_palette, user_feedback)
+
+        return jsonify(result)
+
+    except Exception as e:
+        print(f"Error in evolve-palette: {str(e)}")
+        print(traceback.format_exc())
+
+        return jsonify({
+            'error': 'Internal server error',
+            'message': 'An error occurred while evolving the palette'
+        }), 500
+
+@app.route('/explain-colors', methods=['POST'])
+def explain_colors():
+    """
+    Generate AI-powered explanations for colors in a palette
+
+    Expected JSON data:
+    - palette: Array of hex color codes to explain
+    - context: Optional context about the palette's intended use
+
+    Returns:
+    JSON response with detailed color explanations and palette analysis
+    """
+    try:
+        # Get JSON data
+        data = request.get_json()
+
+        if not data or 'palette' not in data:
+            return jsonify({
+                'error': 'Missing palette data',
+                'message': 'Please provide a palette array in the request body'
+            }), 400
+
+        palette = data['palette']
+        context = data.get('context', '').strip() or None
+
+        # Validate palette
+        if not isinstance(palette, list) or not palette:
+            return jsonify({
+                'error': 'Invalid palette',
+                'message': 'palette must be a non-empty array of hex color codes'
+            }), 400
+
+        # Validate hex colors
+        import re
+        valid_palette = []
+        for color in palette:
+            if isinstance(color, str) and re.match(r'^#[0-9A-Fa-f]{6}$', color):
+                valid_palette.append(color.upper())
+            else:
+                return jsonify({
+                    'error': 'Invalid color format',
+                    'message': f'Color {color} is not a valid hex color (e.g., #FF5733)'
+                }), 400
+
+        if len(valid_palette) > 10:
+            return jsonify({
+                'error': 'Too many colors',
+                'message': 'Maximum 10 colors allowed for explanation'
+            }), 400
+
+        # Generate explanations
+        if text_service_available and text_to_color_service:
+            result = text_to_color_service.explain_colors(valid_palette, context)
+        else:
+            # Use fallback method
+            from text_to_color import TextToColorService
+            temp_service = TextToColorService.__new__(TextToColorService)
+            result = temp_service._fallback_color_explanation(valid_palette, context)
+
+        return jsonify(result)
+
+    except Exception as e:
+        print(f"Error in explain-colors: {str(e)}")
+        print(traceback.format_exc())
+
+        return jsonify({
+            'error': 'Internal server error',
+            'message': 'An error occurred while explaining the colors'
+        }), 500
+
+@app.route('/palette-workflow', methods=['POST'])
+def palette_workflow():
+    """
+    Complete palette workflow: generate from text, evolve based on feedback, and explain
+
+    Expected JSON data:
+    - text_description: Initial text description
+    - palette_mode: Palette generation mode (optional, default: 'smart')
+    - num_colors: Number of colors (optional, default: 5)
+    - evolution_feedback: Optional feedback for evolution
+    - include_explanation: Whether to include color explanations (optional, default: true)
+
+    Returns:
+    JSON response with complete palette workflow results
+    """
+    try:
+        # Get JSON data
+        data = request.get_json()
+
+        if not data or 'text_description' not in data:
+            return jsonify({
+                'error': 'Missing text description',
+                'message': 'Please provide a text_description in the request body'
+            }), 400
+
+        text_description = data['text_description'].strip()
+        palette_mode = data.get('palette_mode', 'smart')
+        num_colors = int(data.get('num_colors', 5))
+        evolution_feedback = data.get('evolution_feedback', '').strip() or None
+        include_explanation = data.get('include_explanation', True)
+
+        if not text_description:
+            return jsonify({
+                'error': 'Empty text description',
+                'message': 'Please provide a non-empty text description'
+            }), 400
+
+        # Validate parameters
+        if num_colors < 1 or num_colors > 20:
+            return jsonify({
+                'error': 'Invalid number of colors',
+                'message': 'Number of colors must be between 1 and 20'
+            }), 400
+
+        workflow_result = {
+            'text_description': text_description,
+            'palette_mode': palette_mode,
+            'num_colors': num_colors
+        }
+
+        # Step 1: Generate initial palette
+        if text_service_available and text_to_color_service:
+            initial_result = text_to_color_service.generate_palette_from_text(
+                text_description, palette_mode, num_colors
+            )
+        else:
+            # Use fallback method
+            from text_to_color import TextToColorService
+            temp_service = TextToColorService.__new__(TextToColorService)
+            seed_color = temp_service._fallback_color_extraction(text_description)
+
+            from generate_color import generate_smart_palette, generate_palette
+            if palette_mode == 'smart':
+                palette = generate_smart_palette(seed_color, num_colors)
+            else:
+                palette = generate_palette(seed_color, palette_mode, num_colors)
+
+            initial_result = {
+                'seed_color': seed_color,
+                'palette': palette
+            }
+
+        workflow_result['initial_palette'] = {
+            'seed_color': initial_result['seed_color'],
+            'palette': initial_result['palette']
+        }
+
+        # Step 2: Evolve palette if feedback provided
+        final_palette = initial_result['palette']
+        if evolution_feedback:
+            if text_service_available and text_to_color_service:
+                evolution_result = text_to_color_service.evolve_palette(
+                    initial_result['palette'], evolution_feedback
+                )
+                workflow_result['evolution'] = evolution_result
+                final_palette = evolution_result['evolved_palette']
+            else:
+                workflow_result['evolution'] = {
+                    'message': 'Evolution requires AI service',
+                    'method': 'skipped'
+                }
+
+        # Step 3: Generate explanations if requested
+        if include_explanation:
+            if text_service_available and text_to_color_service:
+                explanation_result = text_to_color_service.explain_colors(
+                    final_palette, text_description
+                )
+                workflow_result['explanation'] = explanation_result
+            else:
+                from text_to_color import TextToColorService
+                temp_service = TextToColorService.__new__(TextToColorService)
+                explanation_result = temp_service._fallback_color_explanation(
+                    final_palette, text_description
+                )
+                workflow_result['explanation'] = explanation_result
+
+        workflow_result['final_palette'] = final_palette
+        workflow_result['success'] = True
+
+        return jsonify(workflow_result)
+
+    except Exception as e:
+        print(f"Error in palette-workflow: {str(e)}")
+        print(traceback.format_exc())
+
+        return jsonify({
+            'error': 'Internal server error',
+            'message': 'An error occurred during the palette workflow'
         }), 500
 
 if __name__ == '__main__':
