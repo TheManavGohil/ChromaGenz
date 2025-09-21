@@ -13,6 +13,7 @@ import { ColorBlindSimulator } from '@/components/features/colorblind-simulator'
 import { GradientViewer } from '@/components/features/gradient-viewer';
 import { WebsitePreview } from '@/components/features/website-preview';
 import { ColorAnalyzer } from '@/components/features/color-analyzer';
+import { PaletteVariations } from '@/components/features/palette-variations';
 import { hexToColor } from '@/utils/colors';
 import { savePalette } from '@/utils/storage';
 import { Palette, Color } from '@/types';
@@ -536,6 +537,18 @@ export default function Generate() {
               <div className="container mx-auto px-6 py-8 space-y-8">
                 {/* Website Preview */}
                 <WebsitePreview colors={palette.colors} />
+
+                {/* Palette Variations */}
+                <PaletteVariations 
+                  colors={palette.colors} 
+                  onApplyVariation={(newColors) => {
+                    setPalette({ 
+                      ...palette, 
+                      colors: newColors,
+                      name: `${palette.name} (Variation)`
+                    });
+                  }} 
+                />
 
                 {/* Gradient Viewer */}
                 <Card>

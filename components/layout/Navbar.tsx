@@ -104,7 +104,7 @@ export function Navbar() {
                 </Button>
               </div>
             ) : (
-              <Link href="/signup">
+              <Link href="/">
                 <Button size="sm">Sign Up</Button>
               </Link>
             )}
