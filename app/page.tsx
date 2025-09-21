@@ -110,7 +110,7 @@ export default function Home() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
             >
-              <h1 className="text-5xl md:text-7xl font-bold text-white mb-6">
+              <h1 className="text-5xl md:text-7xl font-bold text-gray-100 mb-6">
                 Create Beautiful
                 <span className="block bg-gradient-to-r from-cyan-200 to-blue-200 bg-clip-text text-transparent">
                   Color Palettes
@@ -118,7 +118,7 @@ export default function Home() {
                 with AI
               </h1>
               
-              <p className="text-xl md:text-2xl text-cyan-100 mb-8 max-w-3xl mx-auto">
+              <p className="text-xl md:text-2xl text-gray-200 mb-8 max-w-3xl mx-auto">
                 Generate stunning, accessible color schemes that inspire creativity and ensure inclusivity. 
                 Perfect for designers, developers, and creative professionals.
               </p>

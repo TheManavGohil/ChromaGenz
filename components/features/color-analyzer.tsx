@@ -246,13 +246,6 @@ export function ColorAnalyzer({ colors, context }: ColorAnalyzerProps) {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div>
-                      <h4 className="font-medium mb-2">Description</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {colorAnalysis.description}
-                      </p>
-                    </div>
-                    
-                    <div>
                       <h4 className="font-medium mb-2">Psychology</h4>
                       <p className="text-sm text-muted-foreground">
                         {colorAnalysis.psychology}

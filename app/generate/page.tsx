@@ -357,30 +357,31 @@ export default function Generate() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center"
+          className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 overflow-y-auto"
         >
-          <div className="container max-w-2xl mx-auto px-6">
+          <div className="min-h-full flex items-start justify-center py-4 sm:py-8 sm:items-center">
+            <div className="container max-w-2xl mx-auto px-4 sm:px-6 w-full">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-8"
+          className="text-center mb-6"
         >
-              <h1 className="text-4xl md:text-6xl font-bold mb-6">
+              <h1 className="text-3xl md:text-5xl font-bold mb-4">
             Generate Color Palettes
           </h1>
-              <p className="text-muted-foreground text-lg mb-8">
+              <p className="text-muted-foreground text-base md:text-lg mb-6">
                 Create beautiful, accessible color schemes using AI
           </p>
         </motion.div>
 
             <Card className="backdrop-blur-sm bg-background/95 border-2">
-              <CardHeader className="text-center">
-                <CardTitle className="flex items-center justify-center gap-2 text-xl">
-                  <Sparkles className="h-6 w-6 text-primary" />
+              <CardHeader className="text-center pb-4">
+                <CardTitle className="flex items-center justify-center gap-2 text-lg">
+                  <Sparkles className="h-5 w-5 text-primary" />
                   How would you like to start?
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-4 pt-0">
                 <Tabs value={inputType} onValueChange={setInputType} className="w-full">
                   <TabsList className="grid w-full grid-cols-3 mb-6">
                     <TabsTrigger value="prompt" className="flex items-center gap-2 py-3">
@@ -397,8 +398,8 @@ export default function Generate() {
                     </TabsTrigger>
                   </TabsList>
 
-                  <div className="p-6 rounded-xl bg-muted/50">
-                    <TabsContent value="prompt" className="space-y-4 mt-0">
+                  <div className="p-4 rounded-xl bg-muted/50">
+                    <TabsContent value="prompt" className="space-y-3 mt-0">
                       <div>
                         <label className="text-sm font-medium mb-3 block">
                           Describe your ideal color palette
@@ -413,7 +414,7 @@ export default function Generate() {
                       </div>
                     </TabsContent>
 
-                    <TabsContent value="image" className="mt-0 space-y-4">
+                    <TabsContent value="image" className="mt-0 space-y-3">
                       <div
                         {...getRootProps()}
                         className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
@@ -456,7 +457,7 @@ export default function Generate() {
                       </div>
                     </TabsContent>
 
-                    <TabsContent value="url" className="space-y-4 mt-0">
+                    <TabsContent value="url" className="space-y-3 mt-0">
                         <div>
                         <label className="text-sm font-medium mb-3 block">
                             Enter Website URL
@@ -473,12 +474,12 @@ export default function Generate() {
                   </div>
                 </Tabs>
 
-                <div className="flex gap-3 pt-4">
+                <div className="flex gap-3 pt-3">
                     <Button
                     onClick={inputType === 'url' ? handleUrlGeneration : generatePalette}
                       disabled={isGenerating}
-                    className="flex-1 bg-primary py-6 text-lg"
-                      size="lg"
+                    className="flex-1 bg-primary py-3 text-base"
+                      size="default"
                     >
                     {isGenerating ? (
                       <>
@@ -496,8 +497,8 @@ export default function Generate() {
                         <Button
                     onClick={generatePalette}
                           variant="outline"
-                    size="lg"
-                    className="px-6 py-6"
+                    size="default"
+                    className="px-4 py-3"
                     title="Generate random palette"
                   >
                     <Shuffle className="h-5 w-5" />
@@ -505,6 +506,7 @@ export default function Generate() {
                 </div>
               </CardContent>
             </Card>
+            </div>
           </div>
           </motion.div>
       )}
