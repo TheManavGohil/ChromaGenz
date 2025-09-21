@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +15,7 @@ import { WebsitePreview } from '@/components/features/website-preview';
 import { hexToColor } from '@/utils/colors';
 import { savePalette } from '@/utils/storage';
 import { Palette, Color } from '@/types';
-import { Sparkles, ImageIcon, Link as LinkIcon, Shuffle, Save, Download, Palette as PaletteIcon, Eye, X } from 'lucide-react';
+import { Sparkles, ImageIcon, Link as LinkIcon, Shuffle, Save, Download, Palette as PaletteIcon, Eye, X, ChevronRight, ChevronLeft } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import { useToast } from '@/hooks/use-toast';
 import { colorApi } from '@/lib/api';
@@ -61,17 +61,15 @@ export default function Generate() {
   const [url, setUrl] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const { toast } = useToast();
 
-  // Generate initial palette
-  useEffect(() => {
-    generatePalette();
-  }, []);
+  // Remove auto-generation on page load
 
-  // Spacebar shortcut for generation
+  // Spacebar shortcut for generation (only works if palette exists)
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && !e.ctrlKey && !e.metaKey && e.target === document.body) {
+      if (e.code === 'Space' && !e.ctrlKey && !e.metaKey && e.target === document.body && palette) {
         e.preventDefault();
         generatePalette();
       }
@@ -79,7 +77,7 @@ export default function Generate() {
 
     document.addEventListener('keydown', handleKeyPress);
     return () => document.removeEventListener('keydown', handleKeyPress);
-  }, []);
+  }, [palette]);
 
   const generatePalette = useCallback(async () => {
     try {
@@ -90,7 +88,7 @@ export default function Generate() {
         // If we have a text prompt, use it to generate the palette
         response = await colorApi.generatePaletteFromText(prompt);
       } else {
-        // If no prompt, generate a random seed color and use it
+        // Generate a random palette with random seed color
         const seedColor = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
         response = await colorApi.generatePaletteFromSeed(seedColor);
       }
@@ -104,7 +102,7 @@ export default function Generate() {
       
       const newPalette: Palette = {
         id: Date.now().toString(),
-        name: prompt ? prompt : `Generated Palette ${new Date().toLocaleTimeString()}`,
+        name: prompt.trim() ? prompt.trim() : `Random Palette ${new Date().toLocaleTimeString()}`,
         colors,
         createdAt: new Date().toISOString(),
         locked: new Array(colors.length).fill(false),
@@ -249,7 +247,7 @@ export default function Generate() {
       } else {
         toast({
           title: "Website Not Found",
-          description: "Please enter stripe.com, vercel.com, or linear.app",
+          description: "Please enter valid website",
           variant: "destructive",
         });
       }
@@ -282,68 +280,65 @@ export default function Generate() {
   };
 
   return (
-    <div className="container mx-auto px-2 py-8">
-      <div className="mx-auto">
-        {/* Header */}
+    <div className="h-screen overflow-hidden relative scrollbar-hide">
+      {/* Initial Input Overlay - shows when no palette */}
+      {!palette && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center"
+        >
+          <div className="container max-w-2xl mx-auto px-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-8"
         >
-          <h1 className="text-3xl md:text-4xl font-bold mb-4">
+              <h1 className="text-4xl md:text-6xl font-bold mb-6">
             Generate Color Palettes
           </h1>
-          <p className="text-muted-foreground mb-6">
-            Create beautiful, accessible color schemes using AI. Press spacebar to generate new palettes.
+              <p className="text-muted-foreground text-lg mb-8">
+                Create beautiful, accessible color schemes using AI
           </p>
         </motion.div>
 
-        <div className="grid lg:grid-cols-12 gap-8">
-          {/* Left Sidebar - Input Methods */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="lg:col-span-3 lg:sticky lg:top-24 lg:self-start"
-          >
-            <Card className="backdrop-blur-sm bg-background/95">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-primary" />
-                  Input Methods
+            <Card className="backdrop-blur-sm bg-background/95 border-2">
+              <CardHeader className="text-center">
+                <CardTitle className="flex items-center justify-center gap-2 text-xl">
+                  <Sparkles className="h-6 w-6 text-primary" />
+                  How would you like to start?
                 </CardTitle>
-                <CardDescription>
-                  Choose how you want to generate your palette
-                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <Tabs value={inputType} onValueChange={setInputType} className="w-full">
-                  <TabsList className="grid w-full grid-cols-3 mb-4">
-                    <TabsTrigger value="prompt" className="flex items-center gap-1.5">
+                  <TabsList className="grid w-full grid-cols-3 mb-6">
+                    <TabsTrigger value="prompt" className="flex items-center gap-2 py-3">
                       <Sparkles className="h-4 w-4" />
-                      <span className="hidden sm:inline">Text</span>
+                      Text Prompt
                     </TabsTrigger>
-                    <TabsTrigger value="image" className="flex items-center gap-1.5">
+                    <TabsTrigger value="image" className="flex items-center gap-2 py-3">
                             <ImageIcon className="h-4 w-4" />
-                      <span className="hidden sm:inline">Image</span>
+                      Upload Image
                     </TabsTrigger>
-                    <TabsTrigger value="url" className="flex items-center gap-1.5">
+                    <TabsTrigger value="url" className="flex items-center gap-2 py-3">
                       <LinkIcon className="h-4 w-4" />
-                      <span className="hidden sm:inline">URL</span>
+                      Website URL
                     </TabsTrigger>
                   </TabsList>
 
-                  <div className="p-4 rounded-lg bg-muted/50">
+                  <div className="p-6 rounded-xl bg-muted/50">
                     <TabsContent value="prompt" className="space-y-4 mt-0">
                       <div>
-                        <label className="text-sm font-medium mb-2 block">
-                          Describe your palette
+                        <label className="text-sm font-medium mb-3 block">
+                          Describe your ideal color palette
                         </label>
                         <Textarea
-                          placeholder="e.g., sunset colors, ocean vibes, modern minimal..."
+                          placeholder="e.g., sunset colors, ocean vibes, modern minimal, vintage autumn..."
                           value={prompt}
                           onChange={(e) => setPrompt(e.target.value)}
-                          className="resize-none bg-background"
-                          rows={3}
+                          className="resize-none bg-background text-base"
+                          rows={4}
                         />
                       </div>
                     </TabsContent>
@@ -351,7 +346,7 @@ export default function Generate() {
                     <TabsContent value="image" className="mt-0 space-y-4">
                       <div
                         {...getRootProps()}
-                        className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+                        className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
                           isDragActive
                             ? 'border-primary bg-primary/10'
                             : 'border-muted-foreground hover:border-primary'
@@ -359,187 +354,114 @@ export default function Generate() {
                       >
                         <input {...getInputProps()} />
                         {previewImage ? (
-                          <div className="relative aspect-[4/3] w-full">
+                          <div className="relative max-w-sm mx-auto">
                             <img 
                               src={previewImage} 
                               alt="Preview" 
-                              className="rounded-md object-contain w-full h-full"
+                              className="rounded-lg object-contain w-full h-48"
                             />
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setPreviewImage(null);
                               }}
-                              className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1 hover:bg-black/70 transition-colors"
+                              className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-2 hover:bg-black/70 transition-colors"
                             >
                               <X className="h-4 w-4" />
                             </button>
                           </div>
                         ) : (
                           <>
-                            <ImageIcon className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                            <ImageIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                             {isDragActive ? (
-                              <p>Drop the image here...</p>
+                              <p className="text-lg">Drop the image here...</p>
                             ) : (
                               <div>
-                                <p className="font-medium">Click or drag image</p>
+                                <p className="font-medium text-lg mb-2">Click or drag image here</p>
                                 <p className="text-sm text-muted-foreground">PNG, JPG, GIF up to 10MB</p>
                               </div>
                             )}
                           </>
                         )}
                       </div>
-                      {previewImage && !isGenerating && (
-                        <Button 
-                          onClick={() => setPreviewImage(null)}
-                          variant="outline"
-                          className="w-full"
-                        >
-                          Remove Image
-                        </Button>
-                      )}
                     </TabsContent>
 
                     <TabsContent value="url" className="space-y-4 mt-0">
-                      <div className="space-y-4">
                         <div>
-                          <label className="text-sm font-medium mb-2 block">
+                        <label className="text-sm font-medium mb-3 block">
                             Enter Website URL
                           </label>
-                          <div className="space-y-2">
                             <Input
-                              placeholder="https://stripe.com"
+                          placeholder="https://xyz.com"
                               value={url}
                               onChange={(e) => setUrl(e.target.value)}
-                              className="bg-background"
-                            />
-                            <p className="text-xs text-muted-foreground">
-                              Try: stripe.com, vercel.com, or linear.app
-                            </p>
-                          </div>
-                          <Button
-                            onClick={handleUrlGeneration}
-                            disabled={isGenerating}
-                            className="w-full mt-4"
-                          >
-                            {isGenerating ? (
-                              <>
-                                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-foreground"></div>
-                                Extracting Colors...
-                              </>
-                            ) : (
-                              <>
-                                <LinkIcon className="mr-2 h-4 w-4" />
-                                Extract Colors
-                              </>
-                            )}
-                          </Button>
-                        </div>
+                          className="bg-background text-base py-3"
+                        />
+                  
                       </div>
                     </TabsContent>
                   </div>
                 </Tabs>
 
-                <div className="space-y-4">
-                  <div className="flex gap-2">
+                <div className="flex gap-3 pt-4">
                     <Button
-                      onClick={generatePalette}
+                    onClick={inputType === 'url' ? handleUrlGeneration : generatePalette}
                       disabled={isGenerating}
-                      className="flex-1 bg-primary"
+                    className="flex-1 bg-primary py-6 text-lg"
                       size="lg"
                     >
-                      <Shuffle className="h-4 w-4 mr-2" />
-                      {isGenerating ? 'Generating...' : 'Generate'}
-                    </Button>
-                    
-                    {palette && (
-                      <Button
-                        onClick={handleSavePalette}
-                        variant="outline"
-                        size="lg"
-                        className="bg-background"
-                      >
-                        <Save className="h-4 w-4" />
-                      </Button>
+                    {isGenerating ? (
+                      <>
+                        <div className="mr-3 h-5 w-5 animate-spin rounded-full border-2 border-background border-t-foreground"></div>
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-5 w-5 mr-3" />
+                        Generate Palette
+                      </>
                     )}
-                  </div>
-
-                  {/* Export Options */}
-                  {palette && (
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium block">Export As</label>
-                      <div className="grid grid-cols-2 gap-2">
+                  </Button>
+                  
                         <Button
+                    onClick={generatePalette}
                           variant="outline"
-                          size="sm"
-                          onClick={() => handleExport('hex')}
-                          className="bg-background hover:bg-muted"
-                        >
-                          HEX
+                    size="lg"
+                    className="px-6 py-6"
+                    title="Generate random palette"
+                  >
+                    <Shuffle className="h-5 w-5" />
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleExport('css')}
-                          className="bg-background hover:bg-muted"
-                        >
-                          CSS
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleExport('json')}
-                          className="bg-background hover:bg-muted"
-                        >
-                          JSON
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleExport('pdf')}
-                          className="bg-background hover:bg-muted"
-                        >
-                          PDF
-                        </Button>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </CardContent>
             </Card>
+          </div>
           </motion.div>
+      )}
 
-          {/* Main Content Area */}
+      {/* Main Palette View */}
+      {palette && (
+        <div className="h-screen flex">
+          {/* Main Content Area - Palette + Tools */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="lg:col-span-9 space-y-8"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className={`transition-all duration-500 ease-in-out overflow-y-auto scrollbar-hide ${
+              sidebarOpen ? 'w-[calc(100%-400px)]' : 'w-full'
+            }`}
           >
-            {/* Main Palette */}
-            {palette && (
-              <Card className="overflow-hidden border-2">
-                <CardHeader className="border-b bg-muted/50">
-                  <CardTitle className="flex items-center gap-2">
-                    <PaletteIcon className="h-5 w-5 text-primary" />
-                    Current Palette
-                  </CardTitle>
-                  <CardDescription>
-                    Click on any color to edit or lock it in place
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="p-6">
+            {/* Color Palette */}
+            <div className="h-[93vh] min-h-[400px]">
                   <PaletteViewer
                     palette={palette}
                     onColorChange={handleColorChange}
                     onToggleLock={handleToggleLock}
                   />
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Tools */}
-            {palette && (
-              <div className="space-y-8">
+            </div>
+            
+            {/* Tools Section - Always Visible */}
+            <div className="bg-background border-t">
+              <div className="container mx-auto px-6 py-8 space-y-8">
                 {/* Website Preview */}
                 <WebsitePreview colors={palette.colors} />
 
@@ -569,6 +491,7 @@ export default function Generate() {
                       <AccessibilityChecker colors={palette.colors} />
                     </CardContent>
                   </Card>
+                  
                   <Card>
                     <CardHeader className="border-b bg-muted/50">
                       <CardTitle className="flex items-center gap-2">
@@ -582,20 +505,247 @@ export default function Generate() {
                   </Card>
                 </div>
               </div>
-            )}
-
-            {/* Loading State */}
-            {!palette && (
-              <div className="flex items-center justify-center h-64">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-                  <p className="text-muted-foreground">Generating your palette...</p>
-                </div>
-              </div>
-            )}
+            </div>
           </motion.div>
+
+          {/* Sidebar Toggle Button */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className={`fixed top-1/2 -translate-y-1/2 z-50 transition-all duration-500 ease-in-out ${
+              sidebarOpen ? 'right-[400px]' : 'right-0'
+            }`}
+          >
+            <Button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              variant="outline"
+              size="lg"
+              className="rounded-l-xl rounded-r-none h-20 w-16 bg-white hover:bg-gray-50 border-2 border-gray-400 shadow-xl p-0"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <div className="flex items-center justify-center w-full h-full text-2xl font-bold text-blue-600">
+                {sidebarOpen ? '→' : '←'}
+              </div>
+            </Button>
+          </motion.div>
+
+          {/* Sliding Sidebar */}
+          <AnimatePresence>
+            {sidebarOpen && (
+              <motion.div
+                initial={{ x: '100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                className="fixed right-0 top-0 h-screen w-[400px] bg-background/95 backdrop-blur-sm border-l shadow-xl z-40 overflow-y-auto scrollbar-hide"
+              >
+                <div className="p-6 space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-semibold flex items-center gap-2">
+                      <Sparkles className="h-5 w-5 text-primary" />
+                      New Palette
+                    </h2>
+                  </div>
+
+                  <Tabs value={inputType} onValueChange={setInputType} className="w-full">
+                    <TabsList className="grid w-full grid-cols-3 mb-4">
+                      <TabsTrigger value="prompt" className="flex items-center gap-1">
+                        <Sparkles className="h-3 w-3" />
+                        Text
+                      </TabsTrigger>
+                      <TabsTrigger value="image" className="flex items-center gap-1">
+                        <ImageIcon className="h-3 w-3" />
+                        Image
+                      </TabsTrigger>
+                      <TabsTrigger value="url" className="flex items-center gap-1">
+                        <LinkIcon className="h-3 w-3" />
+                        URL
+                      </TabsTrigger>
+                    </TabsList>
+
+                    <div className="p-4 rounded-lg bg-muted/50">
+                      <TabsContent value="prompt" className="mt-0">
+                        <div>
+                          <label className="text-sm font-medium mb-2 block">
+                            Describe your palette
+                          </label>
+                          <Textarea
+                            placeholder="e.g., sunset colors, ocean vibes, modern minimal..."
+                            value={prompt}
+                            onChange={(e) => setPrompt(e.target.value)}
+                            className="resize-none bg-background"
+                            rows={4}
+                          />
+                        </div>
+                      </TabsContent>
+
+                      <TabsContent value="image" className="mt-0">
+                        <div
+                          {...getRootProps()}
+                          className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+                            isDragActive
+                              ? 'border-primary bg-primary/10'
+                              : 'border-muted-foreground hover:border-primary'
+                          }`}
+                        >
+                          <input {...getInputProps()} />
+                          {previewImage ? (
+                            <div className="relative">
+                              <img 
+                                src={previewImage} 
+                                alt="Preview" 
+                                className="rounded-md object-contain w-full h-32"
+                              />
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPreviewImage(null);
+                                }}
+                                className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1 hover:bg-black/70 transition-colors"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <ImageIcon className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                              {isDragActive ? (
+                                <p>Drop image here</p>
+                              ) : (
+                                <div>
+                                  <p className="font-medium mb-1">Drop image</p>
+                                  <p className="text-xs text-muted-foreground">PNG, JPG, GIF</p>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </TabsContent>
+
+                      <TabsContent value="url" className="mt-0">
+                        <div>
+                          <label className="text-sm font-medium mb-2 block">
+                            Website URL
+                          </label>
+                          <Input
+                            placeholder="https://xyz.com"
+                            value={url}
+                            onChange={(e) => setUrl(e.target.value)}
+                            className="bg-background"
+                          />
+                      
+                        </div>
+                      </TabsContent>
+                    </div>
+                  </Tabs>
+
+                  <div className="flex gap-3">
+                    <Button
+                      onClick={inputType === 'url' ? handleUrlGeneration : generatePalette}
+                      disabled={isGenerating}
+                      className="flex-1"
+                      size="lg"
+                    >
+                      {isGenerating ? (
+                        <>
+                          <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-foreground"></div>
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <Shuffle className="h-4 w-4 mr-2" />
+                          Generate
+                        </>
+                      )}
+                    </Button>
+                    
+                    <Button
+                      onClick={handleSavePalette}
+                      variant="outline"
+                      size="lg"
+                    >
+                      <Save className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  {/* Export Options */}
+                  <div className="space-y-3">
+                    <label className="text-sm font-medium block">Export Palette</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleExport('hex')}
+                        className="bg-background hover:bg-muted"
+                      >
+                        HEX
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleExport('css')}
+                        className="bg-background hover:bg-muted"
+                      >
+                        CSS
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleExport('json')}
+                        className="bg-background hover:bg-muted"
+                      >
+                        JSON
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleExport('pdf')}
+                        className="bg-background hover:bg-muted"
+                      >
+                        PDF
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Quick Actions */}
+                  <div className="space-y-3 border-t pt-4">
+                    <h3 className="font-medium text-sm">Quick Actions</h3>
+                    <div className="space-y-2">
+                      <Button
+                        onClick={generatePalette}
+                        variant="outline"
+                        size="sm"
+                        className="w-full justify-start"
+                        disabled={isGenerating}
+                      >
+                        <Shuffle className="h-3 w-3 mr-2" />
+                        Random Palette
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setPrompt('');
+                          setUrl('');
+                          setPreviewImage(null);
+                        }}
+                        variant="outline"
+                        size="sm"
+                        className="w-full justify-start"
+                      >
+                        <X className="h-3 w-3 mr-2" />
+                        Clear Inputs
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      All tools are visible below the palette
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-      </div>
+      )}
+
     </div>
   );
 }

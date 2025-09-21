@@ -49,84 +49,104 @@ export function ColorSwatch({
 
   return (
     <motion.div
-      className={`relative group h-64 cursor-pointer transition-all duration-300 ease-in-out ${
-        isExpanded ? 'flex-[2]' : 'flex-1'
-      } ${className}`}
+      className={`relative group cursor-pointer transition-all duration-500 ease-in-out overflow-hidden ${className}`}
       style={{ backgroundColor: color.hex }}
-      whileHover={{ scale: 1.02 }}
-      transition={{ duration: 0.2 }}
+      whileHover={{ scale: 1.01 }}
+      transition={{ duration: 0.3 }}
     >
-      {/* Color Info */}
+      {/* Color Info - Bottom */}
       <div
-        className={`absolute bottom-0 left-0 right-0 p-4 transform ${
+        className={`absolute bottom-0 left-0 right-0 p-6 transform ${
           isExpanded ? 'translate-y-0' : 'translate-y-full'
-        } transition-transform duration-300`}
+        } transition-transform duration-500 ease-out`}
         style={{ color: textColor }}
       >
-        <div className="bg-black/20 backdrop-blur-sm rounded-lg p-3">
-          <div className="text-sm font-mono font-medium">{color.hex}</div>
+        <div className="bg-black/30 backdrop-blur-md rounded-xl p-4 text-center">
+          <div className="text-lg font-mono font-bold mb-2">{color.hex}</div>
           {color.name && (
-            <div className="text-xs opacity-80 mt-1">{color.name}</div>
+            <div className="text-sm opacity-90 mb-2">{color.name}</div>
           )}
-          <div className="text-xs opacity-60 mt-1">{color.rgb}</div>
-          <div className="text-xs opacity-60">{color.hsl}</div>
+          <div className="text-xs opacity-70 space-y-1">
+            <div>{color.rgb}</div>
+            <div>{color.hsl}</div>
+          </div>
         </div>
       </div>
 
-      {/* Action Buttons */}
-      <div className="absolute top-2 right-2 flex flex-col space-y-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-        {onToggleLock && (
+      {/* Centered Action Buttons */}
+      <div 
+        className={`absolute inset-0 flex items-center justify-center transform ${
+          isExpanded ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
+        } transition-all duration-500 ease-out pointer-events-none group-hover:pointer-events-auto`}
+      >
+        <div className="flex items-center gap-3 bg-black/30 backdrop-blur-md rounded-full p-3 shadow-lg">
+          {onToggleLock && (
+            <Button
+              size="sm"
+              variant="secondary"
+              className="rounded-full h-10 w-10 p-0 bg-white/20 border-white/30 hover:bg-white/30 transition-all duration-200"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleLock();
+              }}
+              title={isLocked ? "Unlock color" : "Lock color"}
+            >
+              {isLocked ? (
+                <Lock className="h-4 w-4" style={{ color: textColor }} />
+              ) : (
+                <Unlock className="h-4 w-4" style={{ color: textColor }} />
+              )}
+            </Button>
+          )}
+
           <Button
             size="sm"
             variant="secondary"
+            className="rounded-full h-10 w-10 p-0 bg-white/20 border-white/30 hover:bg-white/30 transition-all duration-200"
             onClick={(e) => {
               e.stopPropagation();
-              onToggleLock();
+              handleCopy();
             }}
+            title="Copy color code"
           >
-            {isLocked ? (
-              <Lock className="h-3 w-3" />
+            {copied ? (
+              <Check className="h-4 w-4" style={{ color: textColor }} />
             ) : (
-              <Unlock className="h-3 w-3" />
+              <Copy className="h-4 w-4" style={{ color: textColor }} />
             )}
           </Button>
-        )}
 
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleCopy();
-          }}
-        >
-          {copied ? (
-            <Check className="h-3 w-3" />
-          ) : (
-            <Copy className="h-3 w-3" />
+          {onViewShades && (
+            <Button
+              size="sm"
+              variant="secondary"
+              className="rounded-full h-10 w-10 p-0 bg-white/20 border-white/30 hover:bg-white/30 transition-all duration-200"
+              onClick={(e) => {
+                e.stopPropagation();
+                onViewShades();
+              }}
+              title="View shades"
+            >
+              <Palette className="h-4 w-4" style={{ color: textColor }} />
+            </Button>
           )}
-        </Button>
-
-        {onViewShades && (
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={(e) => {
-              e.stopPropagation();
-              onViewShades();
-            }}
-          >
-            <Palette className="h-3 w-3" />
-          </Button>
-        )}
+        </div>
       </div>
 
-      {/* Lock indicator */}
+      {/* Lock indicator - Top Left */}
       {isLocked && (
-        <div className="absolute top-2 left-2">
+        <div className="absolute top-4 left-4 bg-black/30 backdrop-blur-md rounded-full p-2">
           <Lock className="h-4 w-4" style={{ color: textColor }} />
         </div>
       )}
+
+      {/* Color Code - Always visible in top right */}
+      <div 
+        className="absolute top-4 right-4 bg-black/30 backdrop-blur-md rounded-lg px-3 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+        style={{ color: textColor }}
+      >
+        <div className="text-sm font-mono font-medium">{color.hex}</div>
+      </div>
     </motion.div>
   );
 }

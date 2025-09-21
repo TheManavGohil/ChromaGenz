@@ -46,7 +46,7 @@ export function PaletteViewer({
   return (
     <>
       <motion.div
-        className="flex h-64 rounded-lg overflow-hidden shadow-lg group"
+        className="flex w-full h-full overflow-hidden group"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
@@ -54,10 +54,10 @@ export function PaletteViewer({
         {palette.colors.map((color, index) => (
           <div
             key={index}
-            className="transition-all duration-300 ease-in-out"
+            className="transition-all duration-500 ease-in-out relative"
             style={{
-              flex: expandedIndex === index ? '3' : '1',
-              opacity: expandedIndex === null || expandedIndex === index ? '1' : '0.5',
+              flex: expandedIndex === index ? '2.5' : '1',
+              opacity: expandedIndex === null || expandedIndex === index ? '1' : '0.7',
             }}
             onMouseEnter={() => handleMouseEnter(index)}
             onMouseLeave={handleMouseLeave}
@@ -68,7 +68,7 @@ export function PaletteViewer({
               isExpanded={expandedIndex === index}
               onToggleLock={() => onToggleLock?.(index)}
               onViewShades={() => handleViewShades(index)}
-              className="h-full"
+              className="h-full w-full"
             />
           </div>
         ))}
