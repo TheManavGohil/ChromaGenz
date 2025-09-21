@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Filter, Heart, Copy, Download } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -23,7 +23,12 @@ export default function Explore() {
     hue: 'all',
     popularity: 'trending',
   });
+  const [displayedPalettes, setDisplayedPalettes] = useState<any[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+
+  const PALETTES_PER_PAGE = 12;
 
   // Extended mock palettes for demonstration
   const allPalettes = useMemo(() => {
@@ -72,12 +77,212 @@ export default function Explore() {
         ],
         tags: ['elegant', 'royal', 'luxury']
       },
+      {
+        name: 'Ocean Depths',
+        colors: [
+          { hex: '#001F3F', name: 'Navy', rgb: 'rgb(0,31,63)', hsl: 'hsl(210,100%,12%)' },
+          { hex: '#0074D9', name: 'Blue', rgb: 'rgb(0,116,217)', hsl: 'hsl(207,100%,43%)' },
+          { hex: '#7FDBFF', name: 'Aqua', rgb: 'rgb(127,219,255)', hsl: 'hsl(197,100%,75%)' },
+          { hex: '#39CCCC', name: 'Teal', rgb: 'rgb(57,204,204)', hsl: 'hsl(180,59%,51%)' },
+          { hex: '#E0F6FF', name: 'Azure', rgb: 'rgb(224,246,255)', hsl: 'hsl(200,100%,94%)' },
+        ],
+        tags: ['ocean', 'cool', 'serene']
+      },
+      {
+        name: 'Sunset Vibes',
+        colors: [
+          { hex: '#FF4136', name: 'Red', rgb: 'rgb(255,65,54)', hsl: 'hsl(3,100%,61%)' },
+          { hex: '#FF851B', name: 'Orange', rgb: 'rgb(255,133,27)', hsl: 'hsl(28,100%,55%)' },
+          { hex: '#FFDC00', name: 'Yellow', rgb: 'rgb(255,220,0)', hsl: 'hsl(52,100%,50%)' },
+          { hex: '#FF6B6B', name: 'Coral', rgb: 'rgb(255,107,107)', hsl: 'hsl(0,100%,71%)' },
+          { hex: '#FFE0E0', name: 'Peach', rgb: 'rgb(255,224,224)', hsl: 'hsl(0,100%,94%)' },
+        ],
+        tags: ['warm', 'sunset', 'energetic']
+      },
+      {
+        name: 'Monochrome Classic',
+        colors: [
+          { hex: '#000000', name: 'Black', rgb: 'rgb(0,0,0)', hsl: 'hsl(0,0%,0%)' },
+          { hex: '#333333', name: 'Dark Gray', rgb: 'rgb(51,51,51)', hsl: 'hsl(0,0%,20%)' },
+          { hex: '#666666', name: 'Gray', rgb: 'rgb(102,102,102)', hsl: 'hsl(0,0%,40%)' },
+          { hex: '#CCCCCC', name: 'Light Gray', rgb: 'rgb(204,204,204)', hsl: 'hsl(0,0%,80%)' },
+          { hex: '#FFFFFF', name: 'White', rgb: 'rgb(255,255,255)', hsl: 'hsl(0,0%,100%)' },
+        ],
+        tags: ['monochrome', 'classic', 'minimal']
+      },
+      {
+        name: 'Tropical Paradise',
+        colors: [
+          { hex: '#FF6B35', name: 'Coral Orange', rgb: 'rgb(255,107,53)', hsl: 'hsl(16,100%,60%)' },
+          { hex: '#F7931E', name: 'Orange', rgb: 'rgb(247,147,30)', hsl: 'hsl(32,93%,54%)' },
+          { hex: '#FFD23F', name: 'Golden Yellow', rgb: 'rgb(255,210,63)', hsl: 'hsl(46,100%,62%)' },
+          { hex: '#06FFA5', name: 'Mint Green', rgb: 'rgb(6,255,165)', hsl: 'hsl(158,100%,51%)' },
+          { hex: '#4ECDC4', name: 'Turquoise', rgb: 'rgb(78,205,196)', hsl: 'hsl(176,58%,55%)' },
+        ],
+        tags: ['tropical', 'vibrant', 'summer']
+      },
+      {
+        name: 'Desert Sunrise',
+        colors: [
+          { hex: '#8B4513', name: 'Saddle Brown', rgb: 'rgb(139,69,19)', hsl: 'hsl(25,76%,31%)' },
+          { hex: '#CD853F', name: 'Peru', rgb: 'rgb(205,133,63)', hsl: 'hsl(30,59%,53%)' },
+          { hex: '#DEB887', name: 'Burlywood', rgb: 'rgb(222,184,135)', hsl: 'hsl(34,57%,70%)' },
+          { hex: '#F4A460', name: 'Sandy Brown', rgb: 'rgb(244,164,96)', hsl: 'hsl(28,87%,67%)' },
+          { hex: '#FFF8DC', name: 'Cornsilk', rgb: 'rgb(255,248,220)', hsl: 'hsl(48,100%,93%)' },
+        ],
+        tags: ['earth', 'warm', 'natural']
+      },
+      {
+        name: 'Neon Dreams',
+        colors: [
+          { hex: '#FF0080', name: 'Hot Pink', rgb: 'rgb(255,0,128)', hsl: 'hsl(330,100%,50%)' },
+          { hex: '#8000FF', name: 'Electric Violet', rgb: 'rgb(128,0,255)', hsl: 'hsl(270,100%,50%)' },
+          { hex: '#00FFFF', name: 'Cyan', rgb: 'rgb(0,255,255)', hsl: 'hsl(180,100%,50%)' },
+          { hex: '#00FF00', name: 'Lime', rgb: 'rgb(0,255,0)', hsl: 'hsl(120,100%,50%)' },
+          { hex: '#FFFF00', name: 'Yellow', rgb: 'rgb(255,255,0)', hsl: 'hsl(60,100%,50%)' },
+        ],
+        tags: ['neon', 'electric', 'bright']
+      },
+      {
+        name: 'Forest Mist',
+        colors: [
+          { hex: '#2D4A2B', name: 'Dark Forest', rgb: 'rgb(45,74,43)', hsl: 'hsl(116,26%,23%)' },
+          { hex: '#456B45', name: 'Forest Green', rgb: 'rgb(69,107,69)', hsl: 'hsl(120,22%,35%)' },
+          { hex: '#7BA05B', name: 'Sage', rgb: 'rgb(123,160,91)', hsl: 'hsl(92,27%,49%)' },
+          { hex: '#C8E6C9', name: 'Light Green', rgb: 'rgb(200,230,201)', hsl: 'hsl(122,38%,84%)' },
+          { hex: '#F1F8E9', name: 'Mint Cream', rgb: 'rgb(241,248,233)', hsl: 'hsl(88,50%,94%)' },
+        ],
+        tags: ['nature', 'calm', 'organic']
+      },
+      {
+        name: 'Cherry Blossom',
+        colors: [
+          { hex: '#8E24AA', name: 'Purple', rgb: 'rgb(142,36,170)', hsl: 'hsl(287,65%,40%)' },
+          { hex: '#E91E63', name: 'Pink', rgb: 'rgb(233,30,99)', hsl: 'hsl(340,82%,52%)' },
+          { hex: '#F8BBD9', name: 'Light Pink', rgb: 'rgb(248,187,217)', hsl: 'hsl(330,80%,85%)' },
+          { hex: '#FCE4EC', name: 'Pink Tint', rgb: 'rgb(252,228,236)', hsl: 'hsl(340,67%,94%)' },
+          { hex: '#FFFFFF', name: 'White', rgb: 'rgb(255,255,255)', hsl: 'hsl(0,0%,100%)' },
+        ],
+        tags: ['floral', 'feminine', 'spring']
+      },
+      {
+        name: 'Midnight Sky',
+        colors: [
+          { hex: '#0D1B2A', name: 'Rich Black', rgb: 'rgb(13,27,42)', hsl: 'hsl(211,53%,11%)' },
+          { hex: '#415A77', name: 'Charcoal', rgb: 'rgb(65,90,119)', hsl: 'hsl(212,29%,36%)' },
+          { hex: '#778DA9', name: 'Blue Gray', rgb: 'rgb(119,141,169)', hsl: 'hsl(214,24%,56%)' },
+          { hex: '#B8C5D1', name: 'Light Blue Gray', rgb: 'rgb(184,197,209)', hsl: 'hsl(209,24%,77%)' },
+          { hex: '#E0E1DD', name: 'Platinum', rgb: 'rgb(224,225,221)', hsl: 'hsl(75,6%,87%)' },
+        ],
+        tags: ['dark', 'sophisticated', 'modern']
+      },
+      {
+        name: 'Citrus Burst',
+        colors: [
+          { hex: '#FF6B00', name: 'Orange Peel', rgb: 'rgb(255,107,0)', hsl: 'hsl(25,100%,50%)' },
+          { hex: '#FFD60A', name: 'Golden Poppy', rgb: 'rgb(255,214,10)', hsl: 'hsl(50,100%,52%)' },
+          { hex: '#8AC926', name: 'Yellow Green', rgb: 'rgb(138,201,38)', hsl: 'hsl(83,68%,47%)' },
+          { hex: '#FFE66D', name: 'Buff', rgb: 'rgb(255,230,109)', hsl: 'hsl(50,100%,71%)' },
+          { hex: '#FFF3CD', name: 'Lemon Chiffon', rgb: 'rgb(255,243,205)', hsl: 'hsl(46,100%,90%)' },
+        ],
+        tags: ['citrus', 'fresh', 'energetic']
+      },
+      {
+        name: 'Copper Rust',
+        colors: [
+          { hex: '#A0522D', name: 'Sienna', rgb: 'rgb(160,82,45)', hsl: 'hsl(19,56%,40%)' },
+          { hex: '#CD853F', name: 'Peru', rgb: 'rgb(205,133,63)', hsl: 'hsl(30,59%,53%)' },
+          { hex: '#B87333', name: 'Copper', rgb: 'rgb(184,115,51)', hsl: 'hsl(29,57%,46%)' },
+          { hex: '#DAA520', name: 'Goldenrod', rgb: 'rgb(218,165,32)', hsl: 'hsl(43,74%,49%)' },
+          { hex: '#F5DEB3', name: 'Wheat', rgb: 'rgb(245,222,179)', hsl: 'hsl(39,77%,83%)' },
+        ],
+        tags: ['metallic', 'warm', 'rustic']
+      },
+      {
+        name: 'Arctic Freeze',
+        colors: [
+          { hex: '#A8DADC', name: 'Powder Blue', rgb: 'rgb(168,218,220)', hsl: 'hsl(182,34%,76%)' },
+          { hex: '#457B9D', name: 'Steel Blue', rgb: 'rgb(69,123,157)', hsl: 'hsl(203,39%,44%)' },
+          { hex: '#1D3557', name: 'Prussian Blue', rgb: 'rgb(29,53,87)', hsl: 'hsl(215,50%,23%)' },
+          { hex: '#F1FAEE', name: 'Honeydew', rgb: 'rgb(241,250,238)', hsl: 'hsl(105,50%,96%)' },
+          { hex: '#E63946', name: 'Imperial Red', rgb: 'rgb(230,57,70)', hsl: 'hsl(356,77%,56%)' },
+        ],
+        tags: ['cool', 'winter', 'crisp']
+      },
+      {
+        name: 'Lavender Fields',
+        colors: [
+          { hex: '#6A4C93', name: 'Royal Purple', rgb: 'rgb(106,76,147)', hsl: 'hsl(265,32%,44%)' },
+          { hex: '#9A7AA0', name: 'Purple Mountain', rgb: 'rgb(154,122,160)', hsl: 'hsl(291,18%,55%)' },
+          { hex: '#C5A9CA', name: 'Thistle', rgb: 'rgb(197,169,202)', hsl: 'hsl(291,24%,73%)' },
+          { hex: '#E0D4E7', name: 'Lavender Blush', rgb: 'rgb(224,212,231)', hsl: 'hsl(278,28%,87%)' },
+          { hex: '#F7F3FF', name: 'Ghost White', rgb: 'rgb(247,243,255)', hsl: 'hsl(260,100%,98%)' },
+        ],
+        tags: ['purple', 'calming', 'floral']
+      },
+      {
+        name: 'Autumn Harvest',
+        colors: [
+          { hex: '#8B0000', name: 'Dark Red', rgb: 'rgb(139,0,0)', hsl: 'hsl(0,100%,27%)' },
+          { hex: '#FF4500', name: 'Orange Red', rgb: 'rgb(255,69,0)', hsl: 'hsl(16,100%,50%)' },
+          { hex: '#FFD700', name: 'Gold', rgb: 'rgb(255,215,0)', hsl: 'hsl(51,100%,50%)' },
+          { hex: '#DEB887', name: 'Burlywood', rgb: 'rgb(222,184,135)', hsl: 'hsl(34,57%,70%)' },
+          { hex: '#8B4513', name: 'Saddle Brown', rgb: 'rgb(139,69,19)', hsl: 'hsl(25,76%,31%)' },
+        ],
+        tags: ['autumn', 'warm', 'harvest']
+      },
     ];
     return [...trendingPalettes, ...additional];
   }, []);
 
-  const filteredPalettes = useMemo(() => {
-    return allPalettes.filter(palette => {
+  // Helper function to convert hex to HSL
+  const hexToHsl = useCallback((hex: string) => {
+    const r = parseInt(hex.slice(1, 3), 16) / 255;
+    const g = parseInt(hex.slice(3, 5), 16) / 255;
+    const b = parseInt(hex.slice(5, 7), 16) / 255;
+
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    let h = 0;
+    const l = (max + min) / 2;
+
+    if (max !== min) {
+      const d = max - min;
+      switch (max) {
+        case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+        case g: h = (b - r) / d + 2; break;
+        case b: h = (r - g) / d + 4; break;
+      }
+      h /= 6;
+    }
+
+    return h * 360; // Return hue in degrees
+  }, []);
+
+  // Helper function to check if a color matches a hue category
+  const colorMatchesHue = useCallback((hex: string, targetHue: string) => {
+    const hue = hexToHsl(hex);
+    
+    switch (targetHue) {
+      case 'red':
+        return (hue >= 0 && hue <= 15) || (hue >= 345 && hue <= 360);
+      case 'orange':
+        return hue >= 15 && hue <= 45;
+      case 'yellow':
+        return hue >= 45 && hue <= 75;
+      case 'green':
+        return hue >= 75 && hue <= 165;
+      case 'blue':
+        return hue >= 180 && hue <= 270;
+      case 'purple':
+        return (hue >= 270 && hue <= 345) || (hue >= 165 && hue <= 180);
+      default:
+        return true;
+    }
+  }, [hexToHsl]);
+
+  const filteredAndSortedPalettes = useMemo(() => {
+    let filtered = allPalettes.filter(palette => {
       // Search filter
       if (filters.search) {
         const searchLower = filters.search.toLowerCase();
@@ -86,25 +291,116 @@ export default function Explore() {
         if (!matchesName && !matchesTags) return false;
       }
 
-      // Hue filter (simplified - could be more sophisticated)
+      // Improved Hue filter
       if (filters.hue !== 'all') {
-        const hasHue = palette.colors.some(color => {
-          const hex = color.hex.toLowerCase();
-          switch (filters.hue) {
-            case 'red': return hex.includes('f') && !hex.includes('0');
-            case 'blue': return hex.includes('0') || hex.includes('2') || hex.includes('4');
-            case 'green': return hex.includes('0') || hex.includes('8') || hex.includes('a');
-            case 'yellow': return hex.includes('f') && hex.includes('f');
-            case 'purple': return hex.includes('9') || hex.includes('c');
-            default: return true;
-          }
-        });
-        if (!hasHue) return false;
+        const hasMatchingHue = palette.colors.some(color => 
+          colorMatchesHue(color.hex, filters.hue)
+        );
+        if (!hasMatchingHue) return false;
       }
 
       return true;
     });
-  }, [allPalettes, filters]);
+
+    // Sort the filtered results
+    switch (filters.popularity) {
+      case 'alphabetical':
+        filtered = filtered.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case 'popular':
+        // Simulate popularity by color count and name length (mock data)
+        filtered = filtered.sort((a, b) => {
+          const aPopularity = a.colors.length * 100 + (20 - a.name.length);
+          const bPopularity = b.colors.length * 100 + (20 - b.name.length);
+          return bPopularity - aPopularity;
+        });
+        break;
+      case 'recent':
+        // Simulate recent by reversing the array (mock data)
+        filtered = [...filtered].reverse();
+        break;
+      case 'trending':
+      default:
+        // Keep original order for trending (default)
+        break;
+    }
+
+    return filtered;
+  }, [allPalettes, filters, colorMatchesHue]);
+
+  // Function to create infinite palettes by repeating the filtered ones
+  const createInfinitePalettes = useCallback((basePalettes: any[], totalNeeded: number) => {
+    if (basePalettes.length === 0) return [];
+    
+    const result = [];
+    for (let i = 0; i < totalNeeded; i++) {
+      const paletteIndex = i % basePalettes.length;
+      const repetitionNumber = Math.floor(i / basePalettes.length);
+      result.push({
+        ...basePalettes[paletteIndex],
+        // Add a unique key for React rendering
+        uniqueKey: `${basePalettes[paletteIndex].name}-${repetitionNumber}`,
+      });
+    }
+    return result;
+  }, []);
+
+  // Load more palettes function
+  const loadMorePalettes = useCallback(() => {
+    if (isLoading || filteredAndSortedPalettes.length === 0) return;
+    
+    setIsLoading(true);
+    
+    // Simulate loading delay
+    setTimeout(() => {
+      const startIndex = (currentPage - 1) * PALETTES_PER_PAGE;
+      const endIndex = startIndex + PALETTES_PER_PAGE;
+      const newPalettes = createInfinitePalettes(filteredAndSortedPalettes, endIndex);
+      
+      setDisplayedPalettes(newPalettes);
+      setCurrentPage(prev => prev + 1);
+      setIsLoading(false);
+    }, 200);
+  }, [currentPage, filteredAndSortedPalettes, createInfinitePalettes, isLoading]);
+
+  // Reset displayed palettes when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+    setDisplayedPalettes([]);
+    if (filteredAndSortedPalettes.length > 0) {
+      const initialPalettes = createInfinitePalettes(filteredAndSortedPalettes, PALETTES_PER_PAGE);
+      setDisplayedPalettes(initialPalettes);
+      setCurrentPage(2);
+    }
+  }, [filteredAndSortedPalettes, createInfinitePalettes]);
+
+  // Infinite scroll detection
+  useEffect(() => {
+    const handleScroll = () => {
+      if (isLoading) return;
+      
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      const windowHeight = window.innerHeight;
+      const documentHeight = document.documentElement.scrollHeight;
+      
+      // Trigger load more when user is 200px from bottom
+      if (scrollTop + windowHeight >= documentHeight - 200) {
+        loadMorePalettes();
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [loadMorePalettes, isLoading]);
+
+  // Initial load
+  useEffect(() => {
+    if (displayedPalettes.length === 0 && filteredAndSortedPalettes.length > 0) {
+      const initialPalettes = createInfinitePalettes(filteredAndSortedPalettes, PALETTES_PER_PAGE);
+      setDisplayedPalettes(initialPalettes);
+      setCurrentPage(2);
+    }
+  }, [filteredAndSortedPalettes, displayedPalettes.length, createInfinitePalettes]);
 
   const handleCopyPalette = (palette: any) => {
     const hexColors = palette.colors.map((c: any) => c.hex).join(', ');
@@ -175,9 +471,10 @@ export default function Explore() {
                     <SelectContent>
                       <SelectItem value="all">All Colors</SelectItem>
                       <SelectItem value="red">Red</SelectItem>
-                      <SelectItem value="blue">Blue</SelectItem>
-                      <SelectItem value="green">Green</SelectItem>
+                      <SelectItem value="orange">Orange</SelectItem>
                       <SelectItem value="yellow">Yellow</SelectItem>
+                      <SelectItem value="green">Green</SelectItem>
+                      <SelectItem value="blue">Blue</SelectItem>
                       <SelectItem value="purple">Purple</SelectItem>
                     </SelectContent>
                   </Select>
@@ -214,24 +511,30 @@ export default function Explore() {
         >
           <div className="mb-4 flex items-center justify-between">
             <p className="text-muted-foreground">
-              {filteredPalettes.length} palette{filteredPalettes.length !== 1 ? 's' : ''} found
+              {filteredAndSortedPalettes.length} unique palette{filteredAndSortedPalettes.length !== 1 ? 's' : ''} found
+              {displayedPalettes.length > filteredAndSortedPalettes.length && (
+                <span className="ml-2 text-xs">
+                  (showing {displayedPalettes.length} with repeats)
+                </span>
+              )}
             </p>
           </div>
 
-          {filteredPalettes.length > 0 ? (
+          {displayedPalettes.length > 0 ? (
+            <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredPalettes.map((palette, index) => (
+                {displayedPalettes.map((palette, index) => (
                 <motion.div
-                  key={palette.name}
+                  key={palette.uniqueKey || `${palette.name}-${index}`}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
+                  transition={{ delay: (index % 12) * 0.1 }}
                 >
                   <Card className="overflow-hidden hover:shadow-lg transition-shadow">
                     <CardHeader className="pb-2">
                       <CardTitle className="text-lg">{palette.name}</CardTitle>
                       <div className="flex flex-wrap gap-1">
-                        {palette.tags.map(tag => (
+                        {palette.tags.map((tag: string) => (
                           <Badge key={tag} variant="secondary" className="text-xs">
                             {tag}
                           </Badge>
@@ -242,7 +545,7 @@ export default function Explore() {
                     <CardContent className="p-0">
                       {/* Color Swatches */}
                       <div className="flex h-32">
-                        {palette.colors.map((color, colorIndex) => (
+                        {palette.colors.map((color: any, colorIndex: number) => (
                           <div
                             key={colorIndex}
                             className="flex-1 relative group cursor-pointer"
@@ -288,6 +591,15 @@ export default function Explore() {
                 </motion.div>
               ))}
             </div>
+              
+              {/* Loading indicator */}
+              {isLoading && (
+                <div className="flex justify-center items-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  <span className="ml-3 text-muted-foreground">Loading more palettes...</span>
+                </div>
+              )}
+            </>
           ) : (
             <div className="text-center py-12">
               <p className="text-muted-foreground">No palettes found matching your criteria.</p>
