@@ -1,7 +1,7 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
-import { ThemeProvider } from 'next-themes';
+import { ClientProvider } from '@/components/providers/client-provider';
 import { Navbar } from '@/components/layout/Navbar';
 import { Toaster } from '@/components/ui/toaster';
 
@@ -20,18 +20,13 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          enableSystem
-          disableTransitionOnChange
-        >
+        <ClientProvider defaultTheme="dark">
           <Navbar />
           <main className="min-h-screen bg-background">
             {children}
           </main>
           <Toaster />
-        </ThemeProvider>
+        </ClientProvider>
       </body>
     </html>
   );
