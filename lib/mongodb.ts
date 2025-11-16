@@ -12,10 +12,10 @@ function getMongoURI(): string {
     return envUri;
   }
   
-  // // Fallback to hardcoded URI
-  // if (HARDCODED_MONGODB_URI && HARDCODED_MONGODB_URI !== 'YOUR_MONGODB_URI_HERE') {
-  //   return HARDCODED_MONGODB_URI;
-  // }
+  // Fallback to hardcoded URI
+  if (HARDCODED_MONGODB_URI) {
+    return HARDCODED_MONGODB_URI;
+  }
   
   throw new Error('Please set MONGODB_URI in .env file or update HARDCODED_MONGODB_URI in lib/mongodb.ts');
 }

@@ -1,14 +1,16 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Palette, Sparkles, Eye, Download, ArrowRight, Star, Users, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { initializeMockData } from '@/utils/storage';
+import { initializeMockData, getUser } from '@/utils/storage';
 
 export default function Home() {
+  const router = useRouter();
   const gradients = [
     {
       gradient: 'linear-gradient(135deg, #E0FFFF 0%, #88E0E0 25%, #40B0B0 50%, #207070 75%, #104040 100%)',
@@ -33,6 +35,14 @@ export default function Home() {
   ];
 
   const [currentGradientIndex, setCurrentGradientIndex] = useState(0);
+
+  // Check if user is logged in, if not redirect to signup
+  useEffect(() => {
+    const user = getUser();
+    if (!user) {
+      router.push('/signup');
+    }
+  }, [router]);
 
   useEffect(() => {
     initializeMockData();
