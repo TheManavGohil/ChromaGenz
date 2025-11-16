@@ -2,19 +2,43 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Filter, Heart, Copy, Download } from 'lucide-react';
+import { Search, Filter, Heart, Copy, Download, Plus, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { trendingPalettes } from '@/data/colors';
 import { useToast } from '@/hooks/use-toast';
+import { getUser } from '@/utils/storage';
+import { User } from '@/types';
+import { HexColorPicker } from 'react-colorful';
+import { hexToColor } from '@/utils/colors';
 
 interface FilterOptions {
   search: string;
   hue: string;
   popularity: string;
+}
+
+interface ThemeColor {
+  hex: string;
+  rgb: string;
+  hsl: string;
+  name?: string;
+}
+
+interface Theme {
+  _id: string;
+  name: string;
+  colors: ThemeColor[];
+  tags: string[];
+  createdBy?: {
+    username: string;
+  };
+  createdAt: string;
 }
 
 export default function Explore() {
@@ -26,9 +50,53 @@ export default function Explore() {
   const [displayedPalettes, setDisplayedPalettes] = useState<any[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [themes, setThemes] = useState<Theme[]>([]);
+  const [isLoadingThemes, setIsLoadingThemes] = useState(true);
+  const [isAddThemeOpen, setIsAddThemeOpen] = useState(false);
+  const [newThemeName, setNewThemeName] = useState('');
+  const [newThemeColors, setNewThemeColors] = useState<ThemeColor[]>([]);
+  const [newThemeTags, setNewThemeTags] = useState('');
+  const [currentColorPicker, setCurrentColorPicker] = useState<number | null>(null);
+  const [tempColorHex, setTempColorHex] = useState('#000000');
   const { toast } = useToast();
 
   const PALETTES_PER_PAGE = 12;
+
+  // Fetch themes from API
+  useEffect(() => {
+    const fetchThemes = async () => {
+      try {
+        setIsLoadingThemes(true);
+        const response = await fetch('/api/themes');
+        const result = await response.json();
+        
+        if (response.ok) {
+          setThemes(result.themes || []);
+        } else {
+          console.error('Failed to fetch themes:', result.error);
+        }
+      } catch (error) {
+        console.error('Error fetching themes:', error);
+      } finally {
+        setIsLoadingThemes(false);
+      }
+    };
+
+    fetchThemes();
+    setUser(getUser());
+  }, []);
+
+  // Convert themes to palette format
+  const themesAsPalettes = useMemo(() => {
+    return themes.map(theme => ({
+      name: theme.name,
+      colors: theme.colors,
+      tags: theme.tags || [],
+      uniqueKey: theme._id,
+      isFromDB: true,
+    }));
+  }, [themes]);
 
   // Extended mock palettes for demonstration
   const allPalettes = useMemo(() => {
@@ -232,8 +300,9 @@ export default function Explore() {
         tags: ['autumn', 'warm', 'harvest']
       },
     ];
-    return [...trendingPalettes, ...additional];
-  }, []);
+    // Combine database themes with mock palettes
+    return [...themesAsPalettes, ...trendingPalettes, ...additional];
+  }, [themesAsPalettes]);
 
   // Helper function to convert hex to HSL
   const hexToHsl = useCallback((hex: string) => {
@@ -411,6 +480,97 @@ export default function Explore() {
     });
   };
 
+  const handleAddColor = () => {
+    const colorInfo = hexToColor(tempColorHex);
+    setNewThemeColors([...newThemeColors, {
+      hex: tempColorHex,
+      rgb: colorInfo.rgb,
+      hsl: colorInfo.hsl,
+    }]);
+    setCurrentColorPicker(null);
+    setTempColorHex('#000000');
+  };
+
+  const handleRemoveColor = (index: number) => {
+    setNewThemeColors(newThemeColors.filter((_, i) => i !== index));
+  };
+
+  const handleCreateTheme = async () => {
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to create themes",
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!newThemeName.trim()) {
+      toast({
+        title: "Error",
+        description: "Theme name is required",
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (newThemeColors.length === 0) {
+      toast({
+        title: "Error",
+        description: "At least one color is required",
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const tags = newThemeTags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+      
+      const response = await fetch('/api/themes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newThemeName,
+          colors: newThemeColors,
+          tags,
+          userId: user.id,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to create theme');
+      }
+
+      toast({
+        title: "Success!",
+        description: "Theme created successfully",
+      });
+
+      // Reset form
+      setNewThemeName('');
+      setNewThemeColors([]);
+      setNewThemeTags('');
+      setIsAddThemeOpen(false);
+
+      // Refresh themes
+      const themesResponse = await fetch('/api/themes');
+      const themesResult = await themesResponse.json();
+      if (themesResponse.ok) {
+        setThemes(themesResult.themes || []);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || 'Failed to create theme',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="max-w-6xl mx-auto">
@@ -420,12 +580,123 @@ export default function Explore() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-8"
         >
-          <h1 className="text-3xl md:text-4xl font-bold mb-4">
-            Explore Color Palettes
-          </h1>
-          <p className="text-muted-foreground mb-8">
-            Discover trending palettes and find inspiration for your next project
-          </p>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex-1"></div>
+            <div className="flex-1 text-center">
+              <h1 className="text-3xl md:text-4xl font-bold mb-2">
+                Explore Color Palettes
+              </h1>
+              <p className="text-muted-foreground">
+                Discover trending palettes and find inspiration for your next project
+              </p>
+            </div>
+            <div className="flex-1 flex justify-end">
+              {user?.role === 'admin' && (
+                <Dialog open={isAddThemeOpen} onOpenChange={setIsAddThemeOpen}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Theme
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Create New Theme</DialogTitle>
+                      <DialogDescription>
+                        Add a new color theme to the explore page. Only admins can create themes.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div>
+                        <Label htmlFor="theme-name">Theme Name</Label>
+                        <Input
+                          id="theme-name"
+                          value={newThemeName}
+                          onChange={(e) => setNewThemeName(e.target.value)}
+                          placeholder="e.g., Ocean Breeze"
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label>Colors</Label>
+                        <div className="mt-2 space-y-2">
+                          {newThemeColors.map((color, index) => (
+                            <div key={index} className="flex items-center gap-2">
+                              <div
+                                className="w-12 h-12 rounded border"
+                                style={{ backgroundColor: color.hex }}
+                              />
+                              <div className="flex-1">
+                                <div className="font-mono text-sm">{color.hex}</div>
+                                <div className="text-xs text-muted-foreground">{color.rgb}</div>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRemoveColor(index)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                          
+                          {currentColorPicker === null ? (
+                            <Button
+                              variant="outline"
+                              onClick={() => setCurrentColorPicker(newThemeColors.length)}
+                            >
+                              <Plus className="h-4 w-4 mr-2" />
+                              Add Color
+                            </Button>
+                          ) : (
+                            <div className="space-y-2 p-4 border rounded-lg">
+                              <HexColorPicker
+                                color={tempColorHex}
+                                onChange={setTempColorHex}
+                              />
+                              <div className="flex gap-2">
+                                <Button onClick={handleAddColor} size="sm">
+                                  Add Color
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setCurrentColorPicker(null);
+                                    setTempColorHex('#000000');
+                                  }}
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="theme-tags">Tags (comma-separated)</Label>
+                        <Input
+                          id="theme-tags"
+                          value={newThemeTags}
+                          onChange={(e) => setNewThemeTags(e.target.value)}
+                          placeholder="e.g., cool, ocean, serene"
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setIsAddThemeOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleCreateTheme}>
+                        Create Theme
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              )}
+            </div>
+          </div>
         </motion.div>
 
         {/* Filters */}
@@ -520,7 +791,12 @@ export default function Explore() {
             </p>
           </div>
 
-          {displayedPalettes.length > 0 ? (
+          {isLoadingThemes ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <span className="ml-3 text-muted-foreground">Loading themes...</span>
+            </div>
+          ) : displayedPalettes.length > 0 ? (
             <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {displayedPalettes.map((palette, index) => (

@@ -19,9 +19,18 @@ export function Navbar() {
     setMounted(true);
   }, []);
 
-  const handleLogout = () => {
-    clearUser();
-    setUser(null);
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      clearUser();
+      setUser(null);
+      window.location.href = '/';
+    }
   };
 
   const handleThemeToggle = () => {
@@ -130,15 +139,23 @@ export function Navbar() {
                 <div className="hidden md:flex items-center space-x-2">
                   <User className="h-4 w-4" />
                   <span className="text-sm font-medium">{user.username}</span>
+                  {user.role === 'admin' && (
+                    <span className="text-xs bg-purple-500 text-white px-2 py-0.5 rounded">Admin</span>
+                  )}
                 </div>
                 <Button variant="ghost" size="sm" onClick={handleLogout}>
                   Logout
                 </Button>
               </div>
             ) : (
-              <Link href="/signup">
-                <Button size="sm">Sign Up</Button>
-              </Link>
+              <div className="flex items-center space-x-2">
+                <Link href="/signin">
+                  <Button variant="ghost" size="sm">Sign In</Button>
+                </Link>
+                <Link href="/signup">
+                  <Button size="sm">Sign Up</Button>
+                </Link>
+              </div>
             )}
           </div>
         </div>

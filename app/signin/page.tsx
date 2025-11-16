@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -11,43 +11,36 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Switch } from '@/components/ui/switch';
 import { saveUser } from '@/utils/storage';
 import { User } from '@/types';
-import { UserPlus, Mail, Lock, User as UserIcon, Shield } from 'lucide-react';
+import { LogIn, Mail, Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-const signupSchema = z.object({
-  username: z.string().min(3, 'Username must be at least 3 characters'),
+const signinSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
-  role: z.enum(['user', 'admin'], {
-    required_error: 'Please select a role',
-  }),
 });
 
-type SignupForm = z.infer<typeof signupSchema>;
+type SigninForm = z.infer<typeof signinSchema>;
 
-export default function Signup() {
+export default function Signin() {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
-  const form = useForm<SignupForm>({
-    resolver: zodResolver(signupSchema),
+  const form = useForm<SigninForm>({
+    resolver: zodResolver(signinSchema),
     defaultValues: {
-      username: '',
       email: '',
       password: '',
-      role: 'user',
     },
   });
 
-  const onSubmit = async (data: SignupForm) => {
+  const onSubmit = async (data: SigninForm) => {
     setIsLoading(true);
     
     try {
-      const response = await fetch('/api/auth/signup', {
+      const response = await fetch('/api/auth/signin', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -66,23 +59,23 @@ export default function Signup() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Signup failed');
+        throw new Error(result.error || 'Sign in failed');
       }
 
-      const newUser: User = result.user;
-      saveUser(newUser);
+      const user: User = result.user;
+      saveUser(user);
       
       toast({
-        title: "Welcome to ChromaGen!",
-        description: "Your account has been created successfully.",
+        title: "Welcome back!",
+        description: `Signed in as ${user.username}`,
       });
 
-      // Redirect to generate page with tour trigger
-      router.push('/generate?tour=true');
+      // Redirect to generate page
+      router.push('/generate');
     } catch (error: any) {
-      console.error('Signup error:', error);
+      console.error('Signin error:', error);
       toast({
-        title: "Signup failed",
+        title: "Sign in failed",
         description: error.message || 'An error occurred. Please try again.',
         variant: 'destructive',
       });
@@ -102,72 +95,17 @@ export default function Signup() {
         <Card>
           <CardHeader className="text-center">
             <div className="mx-auto w-12 h-12 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full flex items-center justify-center mb-4">
-              <UserPlus className="h-6 w-6 text-white" />
+              <LogIn className="h-6 w-6 text-white" />
             </div>
-            <CardTitle className="text-2xl font-bold">Join ChromaGen</CardTitle>
+            <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>
             <CardDescription>
-              Create your account to start generating beautiful color palettes
+              Sign in to your account to continue
             </CardDescription>
           </CardHeader>
           
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="role"
-                  render={({ field }) => (
-                    <FormItem>
-                      <div className="flex items-center justify-between rounded-lg border p-4 bg-muted/50">
-                        <div className="flex items-center gap-3">
-                          <UserIcon className={`h-5 w-5 transition-colors ${field.value === 'user' ? 'text-primary' : 'text-muted-foreground'}`} />
-                          <div>
-                            <div className="font-medium">User</div>
-                            <div className="text-xs text-muted-foreground">Standard access</div>
-                          </div>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value === 'admin'}
-                            onCheckedChange={(checked) => {
-                              field.onChange(checked ? 'admin' : 'user');
-                            }}
-                          />
-                        </FormControl>
-                        <div className="flex items-center gap-3">
-                          <div className="text-right">
-                            <div className="font-medium">Admin</div>
-                            <div className="text-xs text-muted-foreground">Can add themes</div>
-                          </div>
-                          <Shield className={`h-5 w-5 transition-colors ${field.value === 'admin' ? 'text-primary' : 'text-muted-foreground'}`} />
-                        </div>
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="username"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Username</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <UserIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <Input 
-                            placeholder="Enter your username" 
-                            className="pl-10"
-                            {...field} 
-                          />
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
                 <FormField
                   control={form.control}
                   name="email"
@@ -201,7 +139,7 @@ export default function Signup() {
                           <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                           <Input 
                             type="password"
-                            placeholder="Create a password" 
+                            placeholder="Enter your password" 
                             className="pl-10"
                             {...field} 
                           />
@@ -220,10 +158,10 @@ export default function Signup() {
                   {isLoading ? (
                     <div className="flex items-center">
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Creating Account...
+                      Signing in...
                     </div>
                   ) : (
-                    'Create Account'
+                    'Sign In'
                   )}
                 </Button>
               </form>
@@ -231,24 +169,11 @@ export default function Signup() {
 
             <div className="mt-6 text-center">
               <p className="text-sm text-muted-foreground">
-                Already have an account?{' '}
-                <Link href="/signin" className="text-primary hover:underline">
-                  Sign in
+                Don't have an account?{' '}
+                <Link href="/signup" className="text-primary hover:underline">
+                  Sign up
                 </Link>
               </p>
-            </div>
-
-            <div className="mt-6 pt-6 border-t">
-              <div className="text-center">
-                <p className="text-xs text-muted-foreground mb-3">
-                  By signing up, you agree to our terms and privacy policy
-                </p>
-                <div className="flex items-center justify-center space-x-4 text-xs text-muted-foreground">
-                  <span>✨ Unlimited palettes</span>
-                  <span>🎨 AI-powered generation</span>
-                  <span>♿ Accessibility tools</span>
-                </div>
-              </div>
             </div>
           </CardContent>
         </Card>
@@ -256,3 +181,4 @@ export default function Signup() {
     </div>
   );
 }
+
