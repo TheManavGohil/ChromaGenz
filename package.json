@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@prisma/client": "^5.18.0",
     "@headlessui/react": "^2.2.8",
     "@hookform/resolvers": "^3.3.4",
     "@next/swc-wasm-nodejs": "13.5.1",
@@ -79,6 +80,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@types/bcryptjs": "^2.4.6"
+    "@types/bcryptjs": "^2.4.6",
+    "prisma": "^5.18.0"
   }
 }
