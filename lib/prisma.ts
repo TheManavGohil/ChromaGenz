@@ -5,15 +5,23 @@ declare global {
   var prisma: PrismaClient | undefined;
 }
 
-export const prisma =
-  global.prisma ||
-  new PrismaClient({
+function createPrismaClient() {
+  return new PrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
   });
-
-if (process.env.NODE_ENV !== 'production') {
-  global.prisma = prisma;
 }
 
+const getPrisma = () => {
+  if (typeof window === 'undefined') {
+    // Server-side only
+    if (!global.prisma) {
+      global.prisma = createPrismaClient();
+    }
+    return global.prisma;
+  }
+  throw new Error('Prisma Client can only be used on the server');
+};
+
+export const prisma = getPrisma();
 export default prisma;
 
