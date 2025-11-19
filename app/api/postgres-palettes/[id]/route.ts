@@ -2,18 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
 interface RouteParams {
-  params: Promise<{
+  params: {
     id: string;
-  }>;
+  };
 }
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function GET(_: NextRequest, { params }: RouteParams) {
   try {
-    const { id } = await params;
     const palette = await prisma.palette.findUnique({
-      where: { id },
+      where: { id: params.id },
     });
 
     if (!palette) {
@@ -35,12 +35,11 @@ export async function GET(_: NextRequest, { params }: RouteParams) {
 
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
-    const { id } = await params;
     const body = await request.json();
     const { name, description, tags, colors } = body;
 
     const existing = await prisma.palette.findUnique({
-      where: { id },
+      where: { id: params.id },
     });
 
     if (!existing) {
@@ -64,7 +63,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     const palette = await prisma.palette.update({
-      where: { id },
+      where: { id: params.id },
       data,
     });
 
@@ -83,9 +82,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
 export async function DELETE(_: NextRequest, { params }: RouteParams) {
   try {
-    const { id } = await params;
     await prisma.palette.delete({
-      where: { id },
+      where: { id: params.id },
     });
 
     return NextResponse.json({ message: 'Palette deleted' }, { status: 200 });
