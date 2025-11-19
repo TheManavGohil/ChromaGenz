@@ -6,27 +6,44 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { Sun, Moon, Palette, Search, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { getUser, clearUser } from '@/utils/storage';
+import { getUser, clearUser, saveUser } from '@/utils/storage';
 import { User as UserType } from '@/types';
+import { useSession, signOut } from 'next-auth/react';
 
 export function Navbar() {
   const { theme, toggleTheme } = useTheme();
+  const { data: session, status } = useSession();
   const [user, setUser] = useState<UserType | null>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setUser(getUser());
+    // Sync NextAuth session with local storage
+    if (session?.user) {
+      const userData: UserType = {
+        id: session.user.id,
+        username: session.user.username || session.user.name || session.user.email?.split('@')[0] || 'user',
+        email: session.user.email || '',
+        role: (session.user.role as 'user' | 'admin') || 'user',
+      };
+      saveUser(userData);
+      setUser(userData);
+    } else {
+      // Fallback to localStorage if no session
+      setUser(getUser());
+    }
     setMounted(true);
-  }, []);
+  }, [session]);
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-      });
+      // Sign out from NextAuth
+      await signOut({ callbackUrl: '/' });
+      // Also clear local storage
+      clearUser();
+      setUser(null);
     } catch (error) {
       console.error('Logout error:', error);
-    } finally {
+      // Fallback to old method
       clearUser();
       setUser(null);
       window.location.href = '/';

@@ -2,6 +2,7 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { ClientProvider } from '@/components/providers/client-provider';
+import { NextAuthSessionProvider } from '@/components/providers/session-provider';
 import { Navbar } from '@/components/layout/Navbar';
 import { Toaster } from '@/components/ui/toaster';
 
@@ -20,13 +21,15 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <ClientProvider defaultTheme="dark">
-          <Navbar />
-          <main className="min-h-screen bg-background">
-            {children}
-          </main>
-          <Toaster />
-        </ClientProvider>
+        <NextAuthSessionProvider>
+          <ClientProvider defaultTheme="dark">
+            <Navbar />
+            <main className="min-h-screen bg-background">
+              {children}
+            </main>
+            <Toaster />
+          </ClientProvider>
+        </NextAuthSessionProvider>
       </body>
     </html>
   );
