@@ -1,6 +1,6 @@
 // API service for color-related backend calls
 
-const API_BASE_URL = process.env.BACKEND_URL;
+const API_BASE_URL = "https://chromagenz.onrender.com"
 
 export interface ColorResponse {
   hex: string;
