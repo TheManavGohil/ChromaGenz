@@ -1,6 +1,6 @@
 // API service for color-related backend calls
 
-const API_BASE_URL = 'https://bit-byte-rmtv.onrender.com';
+const API_BASE_URL = process.env.BACKEND_URL;
 
 export interface ColorResponse {
   hex: string;
