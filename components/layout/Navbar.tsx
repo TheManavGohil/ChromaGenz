@@ -119,12 +119,6 @@ export function Navbar() {
             >
               My Palettes
             </Link>
-            <Link
-              href="/postgres-palettes"
-              className="text-sm font-medium transition-colors hover:text-primary"
-            >
-              Server Palettes
-            </Link>
           </div>
 
           {/* Search Bar */}
