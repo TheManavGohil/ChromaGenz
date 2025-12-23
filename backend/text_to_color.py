@@ -8,7 +8,7 @@ import re
 import json
 from typing import Optional, Dict, Any, List
 from langchain_groq import ChatGroq
-from langchain.schema import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 from dotenv import load_dotenv
 
 # Load environment variables
