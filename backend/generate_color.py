@@ -41,11 +41,7 @@ def generate_palette(seed_hex: str, mode: str, num_colors: int = 5, randomness_f
     return palette
 
 
-# === THE NEW "SMART" GENERATOR ===
 def generate_smart_palette(seed_hex: str, n: int = 5) -> list[str]:
-    """
-    Generates a large pool of colors and intelligently selects the best n.
-    """
     # 1. Generate the Pool
     # Create colors from all harmony rules
     analogous_colors = generate_palette(seed_hex, mode='analogous', num_colors=5)
