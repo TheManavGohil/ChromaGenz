@@ -42,7 +42,7 @@ export function ColorAnalyzer({ colors, context }: ColorAnalyzerProps) {
       console.log('Context:', context);
       
       // Try to make the API call exactly like the working HTML version
-      const API_BASE_URL = process.env.BACKEND_URL ;
+      const API_BASE_URL = 'https://chromagenz.onrender.com' ;
       // 'https://bit-byte-rmtv.onrender.com'
       const requestBody = {
         palette: hexColors,
