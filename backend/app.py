@@ -28,9 +28,14 @@ except ValueError:
     text_service_available = False
     print("⚠️  Groq API key not found. Text-to-color will use fallback method.")
 
+@app.route('/health', methods=['GET'])
+def health():
+    """Minimal liveness probe for uptime monitors (UptimeRobot, cron pings, etc.)."""
+    return jsonify({'status': 'ok'}), 200
+
 @app.route('/', methods=['GET'])
 def health_check():
-    """Health check endpoint"""
+    """API info / status (heavier than /health — use /health for frequent pings)"""
     return jsonify({
         'status': 'healthy',
         'message': 'Color Extraction API is running',
